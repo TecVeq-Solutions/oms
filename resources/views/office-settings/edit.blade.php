@@ -138,67 +138,47 @@
                     <!-- ATTENDANCE TAB -->
                     <!-- ATTENDANCE TAB -->
                     <div x-show="tab === 'attendance'" x-cloak class="space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Office Latitude</label>
-                                <input type="text" name="office_latitude"
-                                    value="{{ old('office_latitude', $settings->office_latitude ?? '') }}"
-                                    class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                            </div>
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Office Longitude</label>
-                                <input type="text" name="office_longitude"
-                                    value="{{ old('office_longitude', $settings->office_longitude ?? '') }}"
-                                    class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                            </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700">Search Office
+                                        Location</label>
+                                    <div class="flex gap-2 mt-1">
+                                        <input type="text" id="office_location_search"
+                                            placeholder="Search office location..."
+                                            class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                        <button type="button" id="search_location_btn"
+                                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg">
+                                            Search
+                                        </button>
+                                    </div>
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Allowed Radius (meters)</label>
-                                <input type="number" name="allowed_radius"
-                                    value="{{ old('allowed_radius', $settings->allowed_radius ?? '') }}"
-                                    class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                            </div>
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Pick Office Location on
+                                        Map</label>
+                                    <div id="office_map" style="height: 400px; border-radius: 12px;"></div>
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Late After Minutes</label>
-                                <input type="number" name="late_after_minutes"
-                                    value="{{ old('late_after_minutes', $dynamicSettings['late_after_minutes'] ?? 15) }}"
-                                    class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                            </div>
+                                <input type="hidden" id="office_latitude" name="office_latitude" value="{{ old('office_latitude', $settings->office_latitude ?? '') }}">
+                                <input type="hidden" id="office_longitude" name="office_longitude" value="{{ old('office_longitude', $settings->office_longitude ?? '') }}">
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Half Day After Minutes</label>
-                                <input type="number" name="half_day_after_minutes"
-                                    value="{{ old('half_day_after_minutes', $dynamicSettings['half_day_after_minutes'] ?? 240) }}"
-                                    class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                            </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Allowed Radius
+                                        (meters)</label>
+                                    <input type="number" name="allowed_radius"
+                                        value="{{ old('allowed_radius', $settings->allowed_radius ?? '') }}"
+                                        class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Require Selfie</label>
-                                <select name="require_selfie"
-                                    class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="1" {{ old('require_selfie', ($dynamicSettings['require_selfie'] ?? true) ? '1' : '0') == '1' ? 'selected' : '' }}>Yes</option>
-                                    <option value="0" {{ old('require_selfie', ($dynamicSettings['require_selfie'] ?? true) ? '1' : '0') == '0' ? 'selected' : '' }}>No</option>
-                                </select>
-                            </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Late After Minutes</label>
+                                    <input type="number" name="late_after_minutes"
+                                        value="{{ old('late_after_minutes', $dynamicSettings['late_after_minutes'] ?? 15) }}"
+                                        class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                </div>
 
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Require Location</label>
-                                <select name="require_location"
-                                    class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="1" {{ old('require_location', ($dynamicSettings['require_location'] ?? true) ? '1' : '0') == '1' ? 'selected' : '' }}>Yes</option>
-                                    <option value="0" {{ old('require_location', ($dynamicSettings['require_location'] ?? true) ? '1' : '0') == '0' ? 'selected' : '' }}>No</option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Require Check-Out</label>
-                                <select name="require_checkout"
-                                    class="w-full mt-1 rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                                    <option value="1" {{ old('require_checkout', ($dynamicSettings['require_checkout'] ?? true) ? '1' : '0') == '1' ? 'selected' : '' }}>Yes</option>
-                                    <option value="0" {{ old('require_checkout', ($dynamicSettings['require_checkout'] ?? true) ? '1' : '0') == '0' ? 'selected' : '' }}>No</option>
-                                </select>
                             </div>
                         </div>
                     </div>
@@ -329,4 +309,79 @@
             </div>
         </div>
     </div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const latInput = document.getElementById('office_latitude');
+            const lngInput = document.getElementById('office_longitude');
+            const searchInput = document.getElementById('office_location_search');
+            const searchBtn = document.getElementById('search_location_btn');
+
+            let defaultLat = parseFloat(latInput.value) || 24.8607;   // Karachi default
+            let defaultLng = parseFloat(lngInput.value) || 67.0011;
+
+            const map = L.map('office_map').setView([defaultLat, defaultLng], 13);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map);
+
+            let marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+
+            function updateLatLng(lat, lng) {
+                latInput.value = lat.toFixed(7);
+                lngInput.value = lng.toFixed(7);
+            }
+
+            updateLatLng(defaultLat, defaultLng);
+
+            // marker drag
+            marker.on('dragend', function (e) {
+                const position = marker.getLatLng();
+                updateLatLng(position.lat, position.lng);
+            });
+
+            // map click
+            map.on('click', function (e) {
+                const { lat, lng } = e.latlng;
+                marker.setLatLng([lat, lng]);
+                updateLatLng(lat, lng);
+            });
+
+            // search location
+            async function searchLocation() {
+                const query = searchInput.value.trim();
+                if (!query) return;
+
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                    const data = await response.json();
+
+                    if (data.length > 0) {
+                        const lat = parseFloat(data[0].lat);
+                        const lng = parseFloat(data[0].lon);
+
+                        map.setView([lat, lng], 16);
+                        marker.setLatLng([lat, lng]);
+                        updateLatLng(lat, lng);
+                    } else {
+                        alert('Location not found');
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert('Error searching location');
+                }
+            }
+
+            searchBtn.addEventListener('click', searchLocation);
+
+            searchInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    searchLocation();
+                }
+            });
+        });
+    </script>
+
 </x-app-layout>

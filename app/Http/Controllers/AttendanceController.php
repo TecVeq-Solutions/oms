@@ -14,50 +14,57 @@ class AttendanceController extends Controller
 {
     public function __construct(
         protected AttendancePrivacyService $privacyService
-    ) {}
-
-public function index(Request $request)
-{
-    abort_unless(auth()->user()->can('view attendance'), 403);
-    abort_unless(feature_enabled('attendance_module_enabled'), 403);
-
-    $query = \App\Models\Attendance::query()
-        ->with(['employee.user', 'employee.shift', 'shift']);
-
-    if ($request->filled('employee')) {
-        $search = $request->employee;
-
-        $query->whereHas('employee.user', function ($q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%");
-        });
+    ) {
     }
 
-    if ($request->filled('status')) {
-        $query->where('status', $request->status);
+    public function index(Request $request)
+    {
+        abort_unless(auth()->user()->can('view attendance'), 403);
+        abort_unless(feature_enabled('attendance_module_enabled'), 403);
+
+        $query = \App\Models\Attendance::query()
+            ->with(['employee.user', 'employee.shift', 'shift']);
+
+        if ($request->filled('employee')) {
+            $search = $request->employee;
+
+            $query->whereHas('employee.user', function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('shift_id')) {
+            $query->where('shift_id', $request->shift_id);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('attendance_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('attendance_date', '<=', $request->date_to);
+        }
+
+        if ($request->filled('suspicious')) {
+            $query->where('is_suspicious', $request->suspicious === '1' ? 1 : 0);
+        }
+
+        $attendances = $query->latest('attendance_date')
+            ->latest('check_in')
+            ->paginate(15)
+            ->withQueryString();
+
+        $shifts = \App\Models\Shift::where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('attendances.index', compact('attendances', 'shifts'));
     }
-
-    if ($request->filled('shift_id')) {
-        $query->where('shift_id', $request->shift_id);
-    }
-
-    if ($request->filled('date_from')) {
-        $query->whereDate('attendance_date', '>=', $request->date_from);
-    }
-
-    if ($request->filled('date_to')) {
-        $query->whereDate('attendance_date', '<=', $request->date_to);
-    }
-
-    $attendances = $query->latest('attendance_date')
-        ->latest('check_in')
-        ->paginate(15)
-        ->withQueryString();
-
-    $shifts = \App\Models\Shift::where('is_active', true)->orderBy('name')->get();
-
-    return view('attendances.index', compact('attendances', 'shifts'));
-}
 
     public function create()
     {
@@ -129,8 +136,10 @@ public function index(Request $request)
                 $officeSetting->office_longitude
             );
 
-            if ($officeSetting->location_required &&
-                $this->privacyService->isOutsideAllowedRadius($distance, $officeSetting->allowed_radius_meters)) {
+            if (
+                $officeSetting->location_required &&
+                $this->privacyService->isOutsideAllowedRadius($distance, $officeSetting->allowed_radius_meters)
+            ) {
                 $isSuspicious = true;
                 $reasons[] = 'Employee is outside office allowed radius';
             }

@@ -47,4 +47,8 @@ class Employee extends Model
     {
         return $this->belongsTo(\App\Models\Shift::class);
     }
+    public function personalDetail()
+    {
+        return $this->hasOne(EmployeePersonalDetail::class);
+    }
 }

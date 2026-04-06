@@ -14,12 +14,12 @@ class OfficeSettingController extends Controller
     {
         $this->settingService = $settingService;
     }
+
     public function edit()
     {
         abort_unless(auth()->user()->can('view office settings'), 403);
 
-        $settings = \App\Models\OfficeSetting::first();
-
+        $settings = OfficeSetting::first();
         $dynamicSettings = $this->settingService->all();
 
         return view('office-settings.edit', compact('settings', 'dynamicSettings'));
@@ -46,6 +46,7 @@ class OfficeSettingController extends Controller
             'smtp_port' => 'nullable|string|max:50',
             'smtp_username' => 'nullable|string|max:255',
             'smtp_password' => 'nullable|string|max:255',
+
             'site_name' => 'nullable|string|max:255',
             'site_tagline' => 'nullable|string|max:255',
             'footer_text' => 'nullable|string|max:500',
@@ -63,28 +64,22 @@ class OfficeSettingController extends Controller
             'ai_module_enabled' => 'nullable|boolean',
         ]);
 
-        $officeSetting = \App\Models\OfficeSetting::first();
+        $officeData = [
+            'office_name' => $request->office_name,
+            'office_email' => $request->office_email,
+            'office_phone' => $request->office_phone,
+            'office_address' => $request->office_address,
+            'office_latitude' => $request->office_latitude,
+            'office_longitude' => $request->office_longitude,
+            'allowed_radius_meters' => $request->allowed_radius,
+        ];
+
+        $officeSetting = OfficeSetting::first();
 
         if (!$officeSetting) {
-            $officeSetting = \App\Models\OfficeSetting::create([
-                'office_name' => $request->office_name,
-                'office_email' => $request->office_email,
-                'office_phone' => $request->office_phone,
-                'office_address' => $request->office_address,
-                'office_latitude' => $request->office_latitude,
-                'office_longitude' => $request->office_longitude,
-                'allowed_radius' => $request->allowed_radius,
-            ]);
+            OfficeSetting::create($officeData);
         } else {
-            $officeSetting->update([
-                'office_name' => $request->office_name,
-                'office_email' => $request->office_email,
-                'office_phone' => $request->office_phone,
-                'office_address' => $request->office_address,
-                'office_latitude' => $request->office_latitude,
-                'office_longitude' => $request->office_longitude,
-                'allowed_radius' => $request->allowed_radius,
-            ]);
+            $officeSetting->update($officeData);
         }
 
         $this->settingService->setMany([
@@ -148,7 +143,6 @@ class OfficeSettingController extends Controller
                 'value' => $request->footer_text,
                 'type' => 'string',
             ],
-
             [
                 'group' => 'attendance',
                 'key' => 'late_after_minutes',
@@ -179,7 +173,6 @@ class OfficeSettingController extends Controller
                 'value' => $request->boolean('require_checkout'),
                 'type' => 'boolean',
             ],
-
             [
                 'group' => 'features',
                 'key' => 'attendance_module_enabled',
