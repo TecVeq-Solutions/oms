@@ -1,8 +1,12 @@
 <x-app-layout>
     <div class="py-8">
-        <div class="max-w-3xl mx-auto sm:px-6 lg:px-8">
+        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white shadow rounded-xl p-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-6">Edit Employee</h2>
+
+                @php
+                    $personal = $employee->personalDetail;
+                @endphp
 
                 @if ($errors->any())
                     <div class="mb-4 rounded-lg bg-red-100 text-red-800 px-4 py-3">
@@ -14,73 +18,244 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('employees.update', $employee) }}" class="space-y-5">
+                <form method="POST" action="{{ route('employees.update', $employee) }}" enctype="multipart/form-data" class="space-y-8">
                     @csrf
                     @method('PUT')
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                        <input type="text" name="full_name" value="{{ old('full_name', $employee->full_name) }}"
-                            class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Basic Information</h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Employee Code</label>
+                                <input type="text" value="{{ $employee->employee_code }}" disabled
+                                    class="w-full rounded-lg border-gray-300 bg-gray-100">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                <input type="text" name="full_name" value="{{ old('full_name', $employee->full_name) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                <input type="email" name="email" value="{{ old('email', $employee->email) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                <input type="text" name="phone" value="{{ old('phone', $employee->phone) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Joining Date</label>
+                                <input type="date" name="joining_date"
+                                    value="{{ old('joining_date', optional($employee->joining_date)->format('Y-m-d')) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                                <input type="text" name="department" value="{{ old('department', $employee->department) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+                                <input type="text" name="designation" value="{{ old('designation', $employee->designation) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select name="status"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="active" {{ old('status', $employee->status) === 'active' ? 'selected' : '' }}>Active</option>
+                                    <option value="inactive" {{ old('status', $employee->status) === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" name="email" value="{{ old('email', $employee->email) }}"
-                            class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                    </div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Change Password</h3>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                            <input type="text" name="phone" value="{{ old('phone', $employee->phone) }}"
-                                class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                <input type="password" name="password"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                <p class="text-xs text-gray-500 mt-1">Leave blank if you do not want to change password.</p>
+                            </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Joining Date</label>
-                            <input type="date" name="joining_date"
-                                value="{{ old('joining_date', optional($employee->joining_date)->format('Y-m-d')) }}"
-                                class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                            <input type="text" name="department" value="{{ old('department', $employee->department) }}"
-                                class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Designation</label>
-                            <input type="text" name="designation"
-                                value="{{ old('designation', $employee->designation) }}"
-                                class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                                <input type="password" name="password_confirmation"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select name="status"
-                            class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="active" {{ old('status', $employee->status) === 'active' ? 'selected' : '' }}>
-                                Active</option>
-                            <option value="inactive" {{ old('status', $employee->status) === 'inactive' ? 'selected' : '' }}>Inactive</option>
-                        </select>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                            <input type="password" name="password"
-                                class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                            <p class="text-xs text-gray-500 mt-1">Leave blank if you do not want to change password.</p>
-                        </div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Personal Details</h3>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                            <input type="password" name="password_confirmation"
-                                class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Father Name</label>
+                                <input type="text" name="father_name" value="{{ old('father_name', $personal?->father_name) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CNIC Number</label>
+                                <input type="text" name="cnic_number" value="{{ old('cnic_number', $personal?->cnic_number) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500"
+                                    placeholder="xxxxx-xxxxxxx-x">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                                <input type="date" name="date_of_birth"
+                                    value="{{ old('date_of_birth', optional($personal?->date_of_birth)->format('Y-m-d')) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                                <select name="gender"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">Select Gender</option>
+                                    <option value="male" {{ old('gender', $personal?->gender) === 'male' ? 'selected' : '' }}>Male</option>
+                                    <option value="female" {{ old('gender', $personal?->gender) === 'female' ? 'selected' : '' }}>Female</option>
+                                    <option value="other" {{ old('gender', $personal?->gender) === 'other' ? 'selected' : '' }}>Other</option>
+                                </select>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Current Address</label>
+                                <textarea name="current_address" rows="3"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">{{ old('current_address', $personal?->current_address) }}</textarea>
+                            </div>
+
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Permanent Address</label>
+                                <textarea name="permanent_address" rows="3"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">{{ old('permanent_address', $personal?->permanent_address) }}</textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                <input type="text" name="city" value="{{ old('city', $personal?->city) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                                <input type="text" name="country" value="{{ old('country', $personal?->country) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Emergency Contact</h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                                <input type="text" name="emergency_contact_name"
+                                    value="{{ old('emergency_contact_name', $personal?->emergency_contact_name) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                                <input type="text" name="emergency_contact_phone"
+                                    value="{{ old('emergency_contact_phone', $personal?->emergency_contact_phone) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+                                <input type="text" name="emergency_contact_relation"
+                                    value="{{ old('emergency_contact_relation', $personal?->emergency_contact_relation) }}"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Documents</h3>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Profile Photo</label>
+                                <input type="file" name="profile_photo"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                @if($personal?->profile_photo)
+                                    <img src="{{ asset('storage/' . $personal->profile_photo) }}"
+                                         alt="Profile Photo"
+                                         class="mt-2 w-24 h-24 object-cover rounded-lg border">
+                                @endif
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CNIC Front Photo</label>
+                                <input type="file" name="cnic_front_photo"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                @if($personal?->cnic_front_photo)
+                                    <a href="{{ asset('storage/' . $personal->cnic_front_photo) }}" target="_blank" class="text-sm text-indigo-600 mt-2 inline-block">
+                                        View current CNIC front
+                                    </a>
+                                @endif
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">CNIC Back Photo</label>
+                                <input type="file" name="cnic_back_photo"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                @if($personal?->cnic_back_photo)
+                                    <a href="{{ asset('storage/' . $personal->cnic_back_photo) }}" target="_blank" class="text-sm text-indigo-600 mt-2 inline-block">
+                                        View current CNIC back
+                                    </a>
+                                @endif
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Document 1</label>
+                                <input type="file" name="document_1"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                @if($personal?->document_1)
+                                    <a href="{{ asset('storage/' . $personal->document_1) }}" target="_blank" class="text-sm text-indigo-600 mt-2 inline-block">
+                                        View current document 1
+                                    </a>
+                                @endif
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Document 2</label>
+                                <input type="file" name="document_2"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                @if($personal?->document_2)
+                                    <a href="{{ asset('storage/' . $personal->document_2) }}" target="_blank" class="text-sm text-indigo-600 mt-2 inline-block">
+                                        View current document 2
+                                    </a>
+                                @endif
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Document 3</label>
+                                <input type="file" name="document_3"
+                                    class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                @if($personal?->document_3)
+                                    <a href="{{ asset('storage/' . $personal->document_3) }}" target="_blank" class="text-sm text-indigo-600 mt-2 inline-block">
+                                        View current document 3
+                                    </a>
+                                @endif
+                            </div>
                         </div>
                     </div>
 

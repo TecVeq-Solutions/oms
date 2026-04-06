@@ -11,6 +11,9 @@ class OfficeSetting extends Model
 
     protected $fillable = [
         'office_name',
+        'office_email',
+        'office_phone',
+        'office_address',
         'office_latitude',
         'office_longitude',
         'allowed_radius_meters',
