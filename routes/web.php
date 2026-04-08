@@ -22,16 +22,13 @@ use App\Http\Controllers\AppNotificationController;
 use App\Http\Controllers\UserRoleController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\AllowedIpController;
+use App\Http\Controllers\EmployeeBankAccountController;
+use App\Http\Controllers\EmployeeSalaryPaymentController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-/*
-|--------------------------------------------------------------------------
-| Authenticated Routes
-|--------------------------------------------------------------------------
-*/
 Route::middleware(['auth', 'verified'])->group(function () {
 
     /*
@@ -54,6 +51,37 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Bank Accounts & Salary Payments (Admin / HR)
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('permission:view employees')->group(function () {
+        Route::get('/employees/{employee}/bank-account', [EmployeeBankAccountController::class, 'show'])
+            ->name('employees.bank-account.show');
+    });
+
+    Route::middleware('permission:edit employees')->group(function () {
+        Route::get('/employees/{employee}/bank-account/edit', [EmployeeBankAccountController::class, 'edit'])
+            ->name('employees.bank-account.edit');
+
+        Route::put('/employees/{employee}/bank-account', [EmployeeBankAccountController::class, 'update'])
+            ->name('employees.bank-account.update');
+    });
+
+    Route::middleware('permission:view salary payments')->group(function () {
+        Route::get('/employees/{employee}/salary-payments', [EmployeeSalaryPaymentController::class, 'index'])
+            ->name('employees.salary-payments.index');
+    });
+
+    Route::middleware('permission:create salary payments')->group(function () {
+        Route::get('/employees/{employee}/salary-payments/create', [EmployeeSalaryPaymentController::class, 'create'])
+            ->name('employees.salary-payments.create');
+
+        Route::post('/employees/{employee}/salary-payments', [EmployeeSalaryPaymentController::class, 'store'])
+            ->name('employees.salary-payments.store');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Employee Self Service
     |--------------------------------------------------------------------------
     */
@@ -72,6 +100,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 Route::get('/my-attendance/check-out', [ProfileController::class, 'checkOutForm'])->name('profile.checkout.form');
                 Route::post('/my-attendance/check-out', [ProfileController::class, 'storeCheckOut'])->name('profile.checkout.store');
             });
+        });
+
+        Route::middleware('permission:view own bank account')->group(function () {
+            Route::get('/my-bank-account', [EmployeeBankAccountController::class, 'myBankAccount'])
+                ->name('bank-account.my');
+        });
+
+        Route::middleware('permission:view own salary payments')->group(function () {
+            Route::get('/my-salary-payments', [EmployeeSalaryPaymentController::class, 'myPayments'])
+                ->name('salary-payments.my');
         });
 
         Route::middleware(['permission:view own leads', 'feature:lead_module_enabled'])->group(function () {
@@ -102,6 +140,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
     Route::middleware('permission:view employees')->group(function () {
         Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+        Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
     });
 
     Route::middleware('permission:create employees')->group(function () {
@@ -112,10 +151,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('permission:edit employees')->group(function () {
         Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
         Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
-    });
-
-    Route::middleware('permission:view employees')->group(function () {
-        Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
     });
 
     Route::middleware('permission:delete employees')->group(function () {
@@ -167,16 +202,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware(['feature:lead_module_enabled'])->group(function () {
-        
         Route::middleware('permission:create leads')->group(function () {
             Route::get('/leads/create', [LeadController::class, 'create'])->name('leads.create');
             Route::post('/leads', [LeadController::class, 'store'])->name('leads.store');
-            });
-            
-            Route::middleware('permission:view leads')->group(function () {
-                Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
-                Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
-            });
+        });
+
+        Route::middleware('permission:view leads')->group(function () {
+            Route::get('/leads', [LeadController::class, 'index'])->name('leads.index');
+            Route::get('/leads/{lead}', [LeadController::class, 'show'])->name('leads.show');
+        });
+
         Route::middleware('permission:edit leads')->group(function () {
             Route::get('/leads/{lead}/edit', [LeadController::class, 'edit'])->name('leads.edit');
             Route::put('/leads/{lead}', [LeadController::class, 'update'])->name('leads.update');
@@ -197,15 +232,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::middleware(['feature:campaign_module_enabled'])->group(function () {
-        
         Route::middleware('permission:create campaigns')->group(function () {
             Route::get('/email-campaigns/create', [EmailCampaignController::class, 'create'])->name('email-campaigns.create');
             Route::post('/email-campaigns', [EmailCampaignController::class, 'store'])->name('email-campaigns.store');
         });
-            Route::middleware('permission:view campaigns')->group(function () {
-                Route::get('/email-campaigns', [EmailCampaignController::class, 'index'])->name('email-campaigns.index');
-                Route::get('/email-campaigns/{email_campaign}', [EmailCampaignController::class, 'show'])->name('email-campaigns.show');
-            });
+
+        Route::middleware('permission:view campaigns')->group(function () {
+            Route::get('/email-campaigns', [EmailCampaignController::class, 'index'])->name('email-campaigns.index');
+            Route::get('/email-campaigns/{email_campaign}', [EmailCampaignController::class, 'show'])->name('email-campaigns.show');
+        });
 
         Route::middleware('permission:edit campaigns')->group(function () {
             Route::get('/email-campaigns/{email_campaign}/edit', [EmailCampaignController::class, 'edit'])->name('email-campaigns.edit');
@@ -325,7 +360,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/user-roles/{user}', [UserRoleController::class, 'update'])->name('user-roles.update');
         Route::resource('allowed-ips', AllowedIpController::class)->except(['show']);
         Route::resource('shifts', ShiftController::class)->except(['show']);
-
     });
 
     /*
@@ -342,4 +376,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

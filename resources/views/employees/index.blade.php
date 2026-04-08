@@ -19,6 +19,7 @@
                         {{ session('success') }}
                     </div>
                 @endif
+
                 <form method="GET" action="{{ route('employees.index') }}" class="mb-6">
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
@@ -31,10 +32,8 @@
                             <select name="status"
                                 class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
                                 <option value="">All Status</option>
-                                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active
-                                </option>
-                                <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive
-                                </option>
+                                <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+                                <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
                             </select>
                         </div>
 
@@ -71,14 +70,10 @@
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Code</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Name</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Email</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department
-                                </th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">
-                                    Designation</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status
-                                </th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions
-                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Department</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Designation</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
 
@@ -92,19 +87,18 @@
                                     <td class="px-4 py-3 text-sm text-gray-700">{{ $employee->designation ?? '-' }}</td>
                                     <td class="px-4 py-3 text-sm">
                                         @if($employee->status === 'active')
-                                            <span
-                                                class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
+                                            <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
                                                 Active
                                             </span>
                                         @else
-                                            <span
-                                                class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
+                                            <span class="inline-flex px-3 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700">
                                                 Inactive
                                             </span>
                                         @endif
                                     </td>
+
                                     <td class="px-4 py-3 text-sm">
-                                        <div class="flex justify-end gap-2">
+                                        <div class="flex flex-wrap justify-end gap-2">
                                             <a href="{{ route('employees.show', $employee) }}"
                                                 class="px-3 py-1.5 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
                                                 View
@@ -113,6 +107,16 @@
                                             <a href="{{ route('employees.edit', $employee) }}"
                                                 class="px-3 py-1.5 rounded-md bg-yellow-100 text-yellow-700 hover:bg-yellow-200">
                                                 Edit
+                                            </a>
+
+                                            <a href="{{ route('employees.bank-account.show', $employee) }}"
+                                                class="px-3 py-1.5 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200">
+                                                Bank Account
+                                            </a>
+
+                                            <a href="{{ route('employees.salary-payments.index', $employee) }}"
+                                                class="px-3 py-1.5 rounded-md bg-green-100 text-green-700 hover:bg-green-200">
+                                                Salary Payments
                                             </a>
 
                                             <form action="{{ route('employees.destroy', $employee) }}" method="POST"
