@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\EmployeeBankAccount;
+use App\Models\EmployeeSalaryPayment;
 
 class Employee extends Model
 {
@@ -50,5 +52,19 @@ class Employee extends Model
     public function personalDetail()
     {
         return $this->hasOne(EmployeePersonalDetail::class);
+    }
+    public function bankAccounts()
+    {
+        return $this->hasMany(EmployeeBankAccount::class);
+    }
+
+    public function activeBankAccount()
+    {
+        return $this->hasOne(EmployeeBankAccount::class)->where('is_active', true);
+    }
+
+    public function salaryPayments()
+    {
+        return $this->hasMany(EmployeeSalaryPayment::class);
     }
 }
