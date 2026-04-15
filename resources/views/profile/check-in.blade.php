@@ -67,9 +67,24 @@
                         <input type="hidden" id="latitude" name="latitude" value="{{ old('latitude') }}">
                         <input type="hidden" id="longitude" name="longitude" value="{{ old('longitude') }}">
                         <input type="hidden" id="capture_source" name="capture_source" value="camera">
+                        <input type="hidden" id="face_verified" name="face_verified" value="{{ old('face_verified', '0') }}">
+                        <input type="hidden" id="face_validation_note" name="face_validation_note" value="{{ old('face_validation_note') }}">
 
-                        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" class="hidden"
-                            required>
+                        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" class="hidden" required>
+
+                        <div class="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 text-sm">
+                            <p class="font-semibold mb-2">Selfie Guidelines</p>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li>Your face must be clearly visible.</li>
+                                <li>Only one face should appear in the frame.</li>
+                                <li>Do not capture desk, wall, floor, ceiling, or random objects.</li>
+                                <li>Do not hide your face with hand, mobile, helmet, or strong shadow.</li>
+                                <li>Mask or glasses are allowed only if face is still clearly visible.</li>
+                                <li>Attendance will not be submitted if no clear face is detected.</li>
+                            </ul>
+                        </div>
+
+                        <div id="faceValidationMessage" class="hidden rounded-lg px-4 py-3 text-sm"></div>
 
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
@@ -78,11 +93,9 @@
                                 </label>
 
                                 <div class="rounded-xl overflow-hidden border bg-black">
-                                    <video id="cameraPreview" autoplay playsinline
-                                        class="w-full h-80 object-cover hidden"></video>
+                                    <video id="cameraPreview" autoplay playsinline class="w-full h-80 object-cover hidden"></video>
 
-                                    <div id="cameraPlaceholder"
-                                        class="w-full h-80 flex items-center justify-center text-sm text-gray-300">
+                                    <div id="cameraPlaceholder" class="w-full h-80 flex items-center justify-center text-sm text-gray-300">
                                         Camera preview will appear here
                                     </div>
                                 </div>
@@ -115,11 +128,9 @@
                                 </label>
 
                                 <div class="rounded-xl overflow-hidden border bg-white">
-                                    <img id="capturedPreview" src="" alt="Captured selfie preview"
-                                        class="w-full h-80 object-cover hidden">
+                                    <img id="capturedPreview" src="" alt="Captured selfie preview" class="w-full h-80 object-cover hidden">
 
-                                    <div id="capturedPlaceholder"
-                                        class="w-full h-80 flex items-center justify-center text-sm text-gray-400">
+                                    <div id="capturedPlaceholder" class="w-full h-80 flex items-center justify-center text-sm text-gray-400">
                                         No selfie captured yet
                                     </div>
                                 </div>
@@ -134,7 +145,7 @@
 
                         <div class="flex items-center gap-3 pt-2">
                             <button type="submit" id="submitCheckInBtn"
-                                class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                                class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition" disabled>
                                 Mark Check In
                             </button>
 
@@ -148,6 +159,8 @@
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -168,11 +181,45 @@
 
             const latitudeInput = document.getElementById('latitude');
             const longitudeInput = document.getElementById('longitude');
+            const faceValidationMessage = document.getElementById('faceValidationMessage');
+            const faceVerifiedInput = document.getElementById('face_verified');
+            const faceValidationNoteInput = document.getElementById('face_validation_note');
 
             let stream = null;
             let photoCaptured = false;
             let isSubmitting = false;
             let cachedLocation = null;
+            let modelsLoaded = false;
+            let faceVerified = false;
+
+            function setFaceMessage(message, type = 'error') {
+                faceValidationMessage.className = 'rounded-lg px-4 py-3 text-sm border';
+
+                if (type === 'success') {
+                    faceValidationMessage.classList.add('bg-green-50', 'text-green-800', 'border-green-200');
+                } else {
+                    faceValidationMessage.classList.add('bg-red-50', 'text-red-800', 'border-red-200');
+                }
+
+                faceValidationMessage.textContent = message;
+            }
+
+            function resetFaceValidation() {
+                faceVerified = false;
+                faceVerifiedInput.value = '0';
+                faceValidationNoteInput.value = '';
+                submitCheckInBtn.disabled = true;
+                faceValidationMessage.classList.add('hidden');
+                faceValidationMessage.textContent = '';
+                faceValidationMessage.className = 'hidden rounded-lg px-4 py-3 text-sm';
+            }
+
+            async function loadFaceModels() {
+                if (modelsLoaded) return;
+                await faceapi.nets.tinyFaceDetector.loadFromUri('/face-api-models');
+                await faceapi.nets.faceLandmark68Net.loadFromUri('/face-api-models');
+                modelsLoaded = true;
+            }
 
             function stopCamera() {
                 if (stream) {
@@ -205,13 +252,9 @@
                             latitudeInput.value = cachedLocation.latitude;
                             longitudeInput.value = cachedLocation.longitude;
 
-                            console.log('Location success:', position.coords);
                             resolve(cachedLocation);
                         },
                         function (error) {
-                            console.log('Geolocation error code:', error.code);
-                            console.log('Geolocation error message:', error.message);
-
                             if (error.code === 1) {
                                 reject(new Error('Location permission denied by browser or system.'));
                             } else if (error.code === 2) {
@@ -233,6 +276,8 @@
 
             async function openCamera() {
                 try {
+                    resetFaceValidation();
+
                     stream = await navigator.mediaDevices.getUserMedia({
                         video: {
                             facingMode: 'user',
@@ -251,6 +296,64 @@
                     retakePhotoBtn.classList.add('hidden');
                 } catch (error) {
                     alert('Camera access denied or unavailable.');
+                }
+            }
+
+            async function validateCapturedFace() {
+                faceVerified = false;
+                faceVerifiedInput.value = '0';
+                faceValidationNoteInput.value = '';
+                submitCheckInBtn.disabled = true;
+
+                try {
+                    await loadFaceModels();
+
+                    const detections = await faceapi
+                        .detectAllFaces(capturedPreview, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks();
+
+                    if (!detections.length) {
+                        setFaceMessage('No face detected. Please capture a clear selfie.');
+                        faceValidationNoteInput.value = 'No face detected';
+                        faceValidationMessage.classList.remove('hidden');
+                        return false;
+                    }
+
+                    if (detections.length > 1) {
+                        setFaceMessage('Multiple faces detected. Only one face is allowed.');
+                        faceValidationNoteInput.value = 'Multiple faces detected';
+                        faceValidationMessage.classList.remove('hidden');
+                        return false;
+                    }
+
+                    const box = detections[0].detection.box;
+                    const imgWidth = capturedPreview.naturalWidth || capturedPreview.width;
+                    const imgHeight = capturedPreview.naturalHeight || capturedPreview.height;
+
+                    const faceArea = box.width * box.height;
+                    const imageArea = imgWidth * imgHeight;
+                    const ratio = faceArea / imageArea;
+
+                    if (ratio < 0.08) {
+                        setFaceMessage('Face is too small or too far. Please move closer to the camera.');
+                        faceValidationNoteInput.value = 'Face too small';
+                        faceValidationMessage.classList.remove('hidden');
+                        return false;
+                    }
+
+                    faceVerified = true;
+                    faceVerifiedInput.value = '1';
+                    faceValidationNoteInput.value = 'Face verified on client side';
+                    setFaceMessage('Face verified. You can now mark attendance.', 'success');
+                    faceValidationMessage.classList.remove('hidden');
+                    submitCheckInBtn.disabled = false;
+
+                    return true;
+                } catch (error) {
+                    setFaceMessage('Face validation failed. Please try again.');
+                    faceValidationNoteInput.value = 'Face validation JS error';
+                    faceValidationMessage.classList.remove('hidden');
+                    return false;
                 }
             }
 
@@ -281,7 +384,11 @@
                     dt.items.add(file);
                     photoInput.files = dt.files;
 
-                    capturedPreview.src = URL.createObjectURL(blob);
+                    const previewUrl = URL.createObjectURL(blob);
+                    capturedPreview.onload = async function () {
+                        await validateCapturedFace();
+                    };
+                    capturedPreview.src = previewUrl;
                     capturedPreview.classList.remove('hidden');
                     capturedPlaceholder.classList.add('hidden');
 
@@ -305,6 +412,7 @@
                 capturedPreview.classList.add('hidden');
                 capturedPlaceholder.classList.remove('hidden');
 
+                resetFaceValidation();
                 await openCamera();
             }
 
@@ -321,6 +429,11 @@
 
                 if (!photoCaptured || !photoInput.files.length) {
                     alert('Please capture your live selfie before check-in.');
+                    return;
+                }
+
+                if (!faceVerified || faceVerifiedInput.value !== '1') {
+                    alert('A clear face is required to mark attendance.');
                     return;
                 }
 

@@ -45,7 +45,8 @@ class EmployeeController extends Controller
 
     public function create()
     {
-        // abort_unless(auth()->user()->can('create employees'), 403);
+        // dd(1);
+        abort_unless(auth()->user()->can('create employees'), 403);
         return view('employees.create');
     }
     public function store(Request $request)
