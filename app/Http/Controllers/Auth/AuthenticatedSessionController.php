@@ -33,7 +33,7 @@ class AuthenticatedSessionController extends Controller
         $currentIp = $request->ip();
 
         // Admin bypass if needed
-        if (!$user->hasRole('admin')) {
+        if (!$user->hasAnyRole(['admin', 'employee'])) {
             $isAllowed = AllowedIp::query()
                 ->where('is_active', true)
                 ->where('ip_address', $currentIp)
@@ -42,10 +42,10 @@ class AuthenticatedSessionController extends Controller
                           ->orWhere('user_id', $user->id);
                 })
                 ->exists();
-
+        
             if (!$isAllowed) {
                 Auth::logout();
-
+        
                 return back()
                     ->withInput($request->only('email'))
                     ->withErrors([

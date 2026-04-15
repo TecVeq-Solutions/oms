@@ -138,16 +138,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     | Employees
     |--------------------------------------------------------------------------
     */
+     Route::middleware('permission:create employees')->group(function () {
+        Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create');
+        Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
+    });
+
     Route::middleware('permission:view employees')->group(function () {
         Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
         Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
     });
 
-    Route::middleware('permission:create employees')->group(function () {
-        Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create');
-        Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
-    });
-
+   
     Route::middleware('permission:edit employees')->group(function () {
         Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
         Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
