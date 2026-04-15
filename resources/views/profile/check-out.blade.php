@@ -48,103 +48,69 @@
                     </div>
                 </div>
 
-                <form id="checkoutForm"
-                      method="POST"
-                      action="{{ route('profile.checkout.store') }}"
-                      enctype="multipart/form-data"
-                      class="space-y-5">
+                <form id="checkoutForm" method="POST" action="{{ route('profile.checkout.store') }}" enctype="multipart/form-data" class="space-y-5">
                     @csrf
 
-                    <input type="hidden" id="latitude" name="latitude" value="{{ old('latitude') }}">
-                    <input type="hidden" id="longitude" name="longitude" value="{{ old('longitude') }}">
+                    <input type="hidden" id="latitude" name="latitude">
+                    <input type="hidden" id="longitude" name="longitude">
                     <input type="hidden" id="capture_source" name="capture_source" value="camera">
+                    <input type="hidden" id="face_verified" name="face_verified" value="0">
+                    <input type="hidden" id="face_validation_note" name="face_validation_note">
 
-                    <input
-                        type="file"
-                        id="photo"
-                        name="photo"
-                        accept="image/jpeg,image/png,image/webp"
-                        class="hidden"
-                        required
-                    >
+                    <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" class="hidden" required>
+
+                    <div class="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 text-sm">
+                        <p class="font-semibold mb-2">Selfie Guidelines</p>
+                        <ul class="list-disc pl-5 space-y-1">
+                            <li>Your face must be clearly visible.</li>
+                            <li>Only one face should appear in the frame.</li>
+                            <li>Do not capture desk, wall, floor, ceiling, or random objects.</li>
+                            <li>Do not hide your face with hand, mobile, helmet, or strong shadow.</li>
+                            <li>Mask or glasses are allowed only if face is still clearly visible.</li>
+                            <li>Attendance will not be submitted if no clear face is detected.</li>
+                        </ul>
+                    </div>
+
+                    <div id="faceValidationMessage" class="hidden rounded-lg px-4 py-3 text-sm"></div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Live Camera Preview
-                            </label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Live Camera Preview</label>
 
                             <div class="rounded-xl overflow-hidden border bg-black">
-                                <video id="cameraPreview"
-                                       autoplay
-                                       playsinline
-                                       class="w-full h-80 object-cover hidden"></video>
-
-                                <div id="cameraPlaceholder"
-                                     class="w-full h-80 flex items-center justify-center text-sm text-gray-300">
+                                <video id="cameraPreview" autoplay playsinline class="w-full h-80 object-cover hidden"></video>
+                                <div id="cameraPlaceholder" class="w-full h-80 flex items-center justify-center text-sm text-gray-300">
                                     Camera preview will appear here
                                 </div>
                             </div>
 
                             <div class="mt-4 flex flex-wrap gap-3">
-                                <button type="button"
-                                        id="openCameraBtn"
-                                        class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
-                                    Open Camera
-                                </button>
-
-                                <button type="button"
-                                        id="capturePhotoBtn"
-                                        class="px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition hidden">
-                                    Capture Photo
-                                </button>
-
-                                <button type="button"
-                                        id="retakePhotoBtn"
-                                        class="px-5 py-2.5 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition hidden">
-                                    Retake
-                                </button>
+                                <button type="button" id="openCameraBtn" class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg">Open Camera</button>
+                                <button type="button" id="capturePhotoBtn" class="px-5 py-2.5 bg-green-600 text-white rounded-lg hidden">Capture Photo</button>
+                                <button type="button" id="retakePhotoBtn" class="px-5 py-2.5 bg-yellow-500 text-white rounded-lg hidden">Retake</button>
                             </div>
-
-                            <p class="text-xs text-gray-500 mt-2">
-                                Only live camera capture is allowed for attendance check-out.
-                            </p>
                         </div>
 
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Captured Selfie
-                            </label>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Captured Selfie</label>
 
                             <div class="rounded-xl overflow-hidden border bg-white">
-                                <img id="capturedPreview"
-                                     src=""
-                                     alt="Captured selfie preview"
-                                     class="w-full h-80 object-cover hidden">
-
-                                <div id="capturedPlaceholder"
-                                     class="w-full h-80 flex items-center justify-center text-sm text-gray-400">
+                                <img id="capturedPreview" class="w-full h-80 object-cover hidden">
+                                <div id="capturedPlaceholder" class="w-full h-80 flex items-center justify-center text-sm text-gray-400">
                                     No selfie captured yet
                                 </div>
                             </div>
 
                             <canvas id="photoCanvas" class="hidden"></canvas>
-
-                            <div class="mt-4 rounded-lg bg-blue-50 text-blue-800 px-4 py-3 text-sm">
-                                Please allow camera and location access to mark your check-out.
-                            </div>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-3 pt-2">
-                        <button type="submit"
-                                id="submitCheckOutBtn"
-                                class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                        <button type="submit" id="submitCheckOutBtn" class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg" disabled>
                             Mark Check Out
                         </button>
 
-                        <a href="{{ route('dashboard') }}"
-                           class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+                        <a href="{{ route('dashboard') }}" class="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-lg">
                             Cancel
                         </a>
                     </div>
@@ -153,192 +119,116 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const form = document.getElementById('checkoutForm');
-            if (!form) return;
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
-            const openCameraBtn = document.getElementById('openCameraBtn');
-            const capturePhotoBtn = document.getElementById('capturePhotoBtn');
-            const retakePhotoBtn = document.getElementById('retakePhotoBtn');
-            const submitCheckOutBtn = document.getElementById('submitCheckOutBtn');
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const FACE_API_MODEL_URL = "{{ asset('face-api-models') }}";
 
-            const cameraPreview = document.getElementById('cameraPreview');
-            const cameraPlaceholder = document.getElementById('cameraPlaceholder');
-            const capturedPreview = document.getElementById('capturedPreview');
-            const capturedPlaceholder = document.getElementById('capturedPlaceholder');
-            const photoCanvas = document.getElementById('photoCanvas');
-            const photoInput = document.getElementById('photo');
+    const form = document.getElementById('checkoutForm');
+    const openCameraBtn = document.getElementById('openCameraBtn');
+    const capturePhotoBtn = document.getElementById('capturePhotoBtn');
+    const retakePhotoBtn = document.getElementById('retakePhotoBtn');
+    const submitBtn = document.getElementById('submitCheckOutBtn');
 
-            const latitudeInput = document.getElementById('latitude');
-            const longitudeInput = document.getElementById('longitude');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+    const capturedPreview = document.getElementById('capturedPreview');
+    const capturedPlaceholder = document.getElementById('capturedPlaceholder');
+    const photoCanvas = document.getElementById('photoCanvas');
+    const photoInput = document.getElementById('photo');
 
-            let stream = null;
-            let photoCaptured = false;
-            let isSubmitting = false;
-            let cachedLocation = null;
+    const latitudeInput = document.getElementById('latitude');
+    const longitudeInput = document.getElementById('longitude');
+    const faceMsg = document.getElementById('faceValidationMessage');
+    const faceVerifiedInput = document.getElementById('face_verified');
 
-            function stopCamera() {
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                    stream = null;
-                }
-            }
+    let stream = null;
+    let photoCaptured = false;
+    let modelsLoaded = false;
+    let faceVerified = false;
 
-            function getLocation(forceRefresh = false) {
-                return new Promise((resolve, reject) => {
-                    if (!navigator.geolocation) {
-                        reject(new Error('Geolocation is not supported by this browser.'));
-                        return;
-                    }
+    function setMsg(msg, ok=false){
+        faceMsg.className = 'rounded-lg px-4 py-3 text-sm border';
+        faceMsg.classList.add(ok?'bg-green-50':'bg-red-50');
+        faceMsg.classList.add(ok?'text-green-800':'text-red-800');
+        faceMsg.textContent = msg;
+        faceMsg.classList.remove('hidden');
+    }
 
-                    if (!forceRefresh && cachedLocation) {
-                        latitudeInput.value = cachedLocation.latitude;
-                        longitudeInput.value = cachedLocation.longitude;
-                        resolve(cachedLocation);
-                        return;
-                    }
+    async function loadModels(){
+        if(modelsLoaded) return;
+        await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_API_MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(FACE_API_MODEL_URL);
+        modelsLoaded = true;
+    }
 
-                    navigator.geolocation.getCurrentPosition(
-                        function (position) {
-                            cachedLocation = {
-                                latitude: position.coords.latitude,
-                                longitude: position.coords.longitude,
-                            };
+    async function validateFace(){
+        faceVerified=false;
+        submitBtn.disabled=true;
 
-                            latitudeInput.value = cachedLocation.latitude;
-                            longitudeInput.value = cachedLocation.longitude;
+        await loadModels();
 
-                            resolve(cachedLocation);
-                        },
-                        function (error) {
-                            if (error.code === 1) {
-                                reject(new Error('Location permission denied by browser or system.'));
-                            } else if (error.code === 2) {
-                                reject(new Error('Location information is unavailable on this device.'));
-                            } else if (error.code === 3) {
-                                reject(new Error('Location request timed out. Please try again.'));
-                            } else {
-                                reject(new Error('Unable to get current location.'));
-                            }
-                        },
-                        {
-                            enableHighAccuracy: false,
-                            timeout: 20000,
-                            maximumAge: 60000
-                        }
-                    );
-                });
-            }
+        const det = await faceapi.detectAllFaces(capturedPreview,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
 
-            async function openCamera() {
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            facingMode: 'user',
-                            width: { ideal: 1280 },
-                            height: { ideal: 720 }
-                        },
-                        audio: false
-                    });
+        if(!det.length){ setMsg('No face detected'); return; }
+        if(det.length>1){ setMsg('Multiple faces detected'); return; }
 
-                    cameraPreview.srcObject = stream;
-                    cameraPreview.classList.remove('hidden');
-                    cameraPlaceholder.classList.add('hidden');
+        faceVerified=true;
+        faceVerifiedInput.value='1';
+        setMsg('Face verified',true);
+        submitBtn.disabled=false;
+    }
 
-                    openCameraBtn.classList.add('hidden');
-                    capturePhotoBtn.classList.remove('hidden');
-                    retakePhotoBtn.classList.add('hidden');
-                } catch (error) {
-                    alert('Camera access denied or unavailable.');
-                }
-            }
+    openCameraBtn.onclick=async()=>{
+        stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});
+        cameraPreview.srcObject=stream;
+        cameraPreview.classList.remove('hidden');
+        cameraPlaceholder.classList.add('hidden');
+        openCameraBtn.classList.add('hidden');
+        capturePhotoBtn.classList.remove('hidden');
+    };
 
-            function capturePhoto() {
-                if (!cameraPreview.videoWidth || !cameraPreview.videoHeight) {
-                    alert('Camera is not ready yet.');
-                    return;
-                }
+    capturePhotoBtn.onclick=()=>{
+        photoCanvas.width=cameraPreview.videoWidth;
+        photoCanvas.height=cameraPreview.videoHeight;
+        photoCanvas.getContext('2d').drawImage(cameraPreview,0,0);
 
-                photoCanvas.width = cameraPreview.videoWidth;
-                photoCanvas.height = cameraPreview.videoHeight;
+        photoCanvas.toBlob(blob=>{
+            const file=new File([blob],'selfie.jpg',{type:'image/jpeg'});
+            const dt=new DataTransfer();
+            dt.items.add(file);
+            photoInput.files=dt.files;
 
-                const context = photoCanvas.getContext('2d');
-                context.drawImage(cameraPreview, 0, 0, photoCanvas.width, photoCanvas.height);
+            capturedPreview.onload=validateFace;
+            capturedPreview.src=URL.createObjectURL(blob);
+            capturedPreview.classList.remove('hidden');
+            capturedPlaceholder.classList.add('hidden');
 
-                photoCanvas.toBlob(function (blob) {
-                    if (!blob) {
-                        alert('Photo capture failed.');
-                        return;
-                    }
+            stream.getTracks().forEach(t=>t.stop());
 
-                    const file = new File([blob], 'camera-selfie.jpg', {
-                        type: 'image/jpeg',
-                        lastModified: Date.now()
-                    });
-
-                    const dt = new DataTransfer();
-                    dt.items.add(file);
-                    photoInput.files = dt.files;
-
-                    capturedPreview.src = URL.createObjectURL(blob);
-                    capturedPreview.classList.remove('hidden');
-                    capturedPlaceholder.classList.add('hidden');
-
-                    photoCaptured = true;
-
-                    stopCamera();
-                    cameraPreview.classList.add('hidden');
-                    cameraPlaceholder.classList.remove('hidden');
-                    capturePhotoBtn.classList.add('hidden');
-                    retakePhotoBtn.classList.remove('hidden');
-                }, 'image/jpeg', 0.92);
-            }
-
-            async function retakePhoto() {
-                photoCaptured = false;
-
-                const dt = new DataTransfer();
-                photoInput.files = dt.files;
-
-                capturedPreview.src = '';
-                capturedPreview.classList.add('hidden');
-                capturedPlaceholder.classList.remove('hidden');
-
-                await openCamera();
-            }
-
-            openCameraBtn.addEventListener('click', openCamera);
-            capturePhotoBtn.addEventListener('click', capturePhoto);
-            retakePhotoBtn.addEventListener('click', retakePhoto);
-
-            form.addEventListener('submit', async function (e) {
-                e.preventDefault();
-
-                if (isSubmitting) {
-                    return;
-                }
-
-                if (!photoCaptured || !photoInput.files.length) {
-                    alert('Please capture your live selfie before check-out.');
-                    return;
-                }
-
-                try {
-                    await getLocation();
-                } catch (error) {
-                    alert(error.message);
-                    return;
-                }
-
-                isSubmitting = true;
-                submitCheckOutBtn.disabled = true;
-                submitCheckOutBtn.innerText = 'Submitting...';
-
-                form.submit();
-            });
-
-            window.addEventListener('beforeunload', stopCamera);
+            capturePhotoBtn.classList.add('hidden');
+            retakePhotoBtn.classList.remove('hidden');
+            photoCaptured=true;
         });
-    </script>
+    };
+
+    retakePhotoBtn.onclick=()=>{
+        location.reload();
+    };
+
+    form.onsubmit=async(e)=>{
+        e.preventDefault();
+
+        if(!photoCaptured){ alert('Capture selfie first'); return; }
+        if(!faceVerified){ alert('Face required'); return; }
+
+        navigator.geolocation.getCurrentPosition(pos=>{
+            latitudeInput.value=pos.coords.latitude;
+            longitudeInput.value=pos.coords.longitude;
+            form.submit();
+        });
+    };
+});
+</script>
 </x-app-layout>
