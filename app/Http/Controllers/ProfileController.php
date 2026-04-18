@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Str;
 
-
 class ProfileController extends Controller
 {
     public function __construct(
@@ -53,13 +52,82 @@ class ProfileController extends Controller
         return view('profile.my-attendance', compact('employee', 'attendances'));
     }
 
+    /**
+     * Resolve attendance date according to employee assigned shift.
+     * For overnight shift, after midnight and before shift end, attendance belongs to previous day.
+     */
+    private function resolveAttendanceDateForShift($shift, Carbon $currentDateTime): string
+    {
+        $attendanceDate = $currentDateTime->copy()->toDateString();
+
+        if (!$shift) {
+            return $attendanceDate;
+        }
+
+        if ($shift->is_overnight) {
+            $shiftEndToday = Carbon::parse(
+                $currentDateTime->toDateString() . ' ' . $shift->end_time,
+                'Asia/Karachi'
+            );
+
+            if ($currentDateTime->lte($shiftEndToday)) {
+                $attendanceDate = $currentDateTime->copy()->subDay()->toDateString();
+            }
+        }
+
+        return $attendanceDate;
+    }
+
+    /**
+     * Find the relevant attendance record for current shift window.
+     */
+    private function getCurrentShiftAttendance($employee, Carbon $currentDateTime): ?Attendance
+    {
+        if (!$employee || !$employee->shift) {
+            return null;
+        }
+
+        $attendanceDate = $this->resolveAttendanceDateForShift($employee->shift, $currentDateTime);
+
+        return Attendance::where('employee_id', $employee->id)
+            ->whereDate('attendance_date', $attendanceDate)
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Prevent duplicate or invalid check-in based on shift.
+     */
+    private function canCheckInNow($employee, Carbon $currentDateTime): array
+    {
+        $attendance = $this->getCurrentShiftAttendance($employee, $currentDateTime);
+
+        if ($attendance && !$attendance->check_out) {
+            return [
+                'allowed' => false,
+                'message' => 'You have already checked in for your current shift. Please check out first.',
+            ];
+        }
+
+        if ($attendance && $attendance->check_out) {
+            return [
+                'allowed' => false,
+                'message' => 'Attendance already completed for your current shift.',
+            ];
+        }
+
+        return [
+            'allowed' => true,
+            'message' => null,
+        ];
+    }
+
     public function checkInForm()
     {
         abort_unless(auth()->user()->can('mark self attendance'), 403);
         abort_unless(feature_enabled('attendance_module_enabled'), 403);
 
         $user = auth()->user();
-        $employee = $user->employee;
         $employee = $user->employee?->load('shift');
 
         if (!$employee) {
@@ -68,10 +136,8 @@ class ProfileController extends Controller
                 ->with('error', 'Your employee profile is not linked yet.');
         }
 
-        $todayAttendance = Attendance::where('employee_id', $employee->id)
-            ->whereDate('attendance_date', today())
-            ->first();
-
+        $now = Carbon::now('Asia/Karachi');
+        $todayAttendance = $this->getCurrentShiftAttendance($employee, $now);
         $officeSetting = OfficeSetting::first();
 
         return view('profile.check-in', compact('employee', 'todayAttendance', 'officeSetting'));
@@ -83,7 +149,7 @@ class ProfileController extends Controller
         abort_unless(feature_enabled('attendance_module_enabled'), 403);
 
         $user = auth()->user();
-        $employee = $user->employee;
+        $employee = $user->employee?->load('shift');
 
         if (!$employee) {
             return redirect()
@@ -107,18 +173,15 @@ class ProfileController extends Controller
         ]);
 
         $checkIn = Carbon::now('Asia/Karachi');
-        $attendanceDate = $checkIn->toDateString();
+        $shift = $employee->shift;
+        $attendanceDate = $this->resolveAttendanceDateForShift($shift, $checkIn);
 
-        $alreadyMarked = Attendance::where('employee_id', $employee->id)
-            ->whereDate('attendance_date', $attendanceDate)
-            ->exists();
-
-        if ($alreadyMarked) {
-            return back()->with('error', 'Attendance already marked for today.');
+        $checkInPermission = $this->canCheckInNow($employee, $checkIn);
+        if (!$checkInPermission['allowed']) {
+            return back()->with('error', $checkInPermission['message']);
         }
 
         $officeSetting = OfficeSetting::first();
-        $shift = $employee->shift;
 
         $distance = null;
         $outsideOffice = false;
@@ -163,13 +226,9 @@ class ProfileController extends Controller
         $photoPath = $photoFile->store('attendance_photos', 'public');
 
         $shiftStart = Carbon::parse(
-            $checkIn->toDateString() . ' ' . $shift->start_time,
+            $attendanceDate . ' ' . $shift->start_time,
             'Asia/Karachi'
         );
-
-        if ($shift->is_overnight && $checkIn->lt($shiftStart)) {
-            $shiftStart->subDay();
-        }
 
         $lateThreshold = $shiftStart->copy()->addMinutes($shift->grace_minutes ?? 0);
 
@@ -231,9 +290,7 @@ class ProfileController extends Controller
         abort_unless(auth()->user()->can('mark self checkout'), 403);
         abort_unless(feature_enabled('attendance_module_enabled'), 403);
 
-
         $user = auth()->user();
-        $employee = $user->employee;
         $employee = $user->employee?->load('shift');
 
         if (!$employee) {
@@ -242,9 +299,14 @@ class ProfileController extends Controller
                 ->with('error', 'Your employee profile is not linked yet.');
         }
 
-        $todayAttendance = Attendance::where('employee_id', $employee->id)
-            ->whereDate('attendance_date', today())
-            ->first();
+        if (!$employee->shift) {
+            return redirect()
+                ->route('dashboard')
+                ->with('error', 'No shift assigned to your profile. Please contact admin.');
+        }
+
+        $now = Carbon::now('Asia/Karachi');
+        $todayAttendance = $this->getCurrentShiftAttendance($employee, $now);
 
         if (!$todayAttendance) {
             return redirect()
@@ -252,9 +314,14 @@ class ProfileController extends Controller
                 ->with('error', 'Please mark check-in first.');
         }
 
+        if ($todayAttendance->check_out) {
+            return redirect()
+                ->route('profile.attendance')
+                ->with('error', 'Check-out already submitted for this shift.');
+        }
+
         return view('profile.check-out', compact('employee', 'todayAttendance'));
     }
-
 
     public function storeCheckOut(Request $request)
     {
@@ -262,7 +329,7 @@ class ProfileController extends Controller
         abort_unless(feature_enabled('attendance_module_enabled'), 403);
 
         $user = auth()->user();
-        $employee = $user->employee;
+        $employee = $user->employee?->load('shift');
 
         if (!$employee) {
             return redirect()
@@ -282,11 +349,9 @@ class ProfileController extends Controller
         ]);
 
         $checkOut = Carbon::now('Asia/Karachi');
-        $attendanceDate = $checkOut->toDateString();
+        $shift = $employee->shift;
 
-        $attendance = Attendance::where('employee_id', $employee->id)
-            ->whereDate('attendance_date', $attendanceDate)
-            ->first();
+        $attendance = $this->getCurrentShiftAttendance($employee, $checkOut);
 
         if (!$attendance) {
             return redirect()
@@ -295,10 +360,9 @@ class ProfileController extends Controller
         }
 
         if ($attendance->check_out) {
-            return back()->with('error', 'Check-out already submitted for today.');
+            return back()->with('error', 'Check-out already submitted for this shift.');
         }
 
-        $shift = $employee->shift;
         $officeSetting = OfficeSetting::first();
 
         $distance = null;
@@ -349,9 +413,12 @@ class ProfileController extends Controller
             'Asia/Karachi'
         );
 
-        $checkOutDateTime = $checkOut->copy();
+        $checkOutDateTime = Carbon::parse(
+            $checkOut->format('Y-m-d H:i:s'),
+            'Asia/Karachi'
+        );
 
-        if ($checkOutDateTime->lessThanOrEqualTo($checkInDateTime)) {
+        if ($checkOutDateTime->lte($checkInDateTime)) {
             $checkOutDateTime->addDay();
         }
 
@@ -383,11 +450,11 @@ class ProfileController extends Controller
             );
 
             if ($shift->is_overnight) {
-                if ($breakStart->lessThan($checkInDateTime)) {
+                if ($breakStart->lt($checkInDateTime)) {
                     $breakStart->addDay();
                 }
 
-                if ($breakEnd->lessThanOrEqualTo($breakStart)) {
+                if ($breakEnd->lte($breakStart)) {
                     $breakEnd->addDay();
                 }
             }
@@ -445,6 +512,7 @@ class ProfileController extends Controller
             ->route('profile.attendance')
             ->with('success', 'Your check-out has been submitted successfully.');
     }
+
     public function edit(Request $request): View
     {
         return view('profile.edit', [
