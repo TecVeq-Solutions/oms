@@ -351,6 +351,7 @@ class ProfileController extends Controller
         $checkOut = Carbon::now('Asia/Karachi');
         $shift = $employee->shift;
 
+        // Shift-aware attendance find
         $attendance = $this->getCurrentShiftAttendance($employee, $checkOut);
 
         if (!$attendance) {
@@ -408,67 +409,104 @@ class ProfileController extends Controller
 
         $checkoutPhotoPath = $photoFile->store('attendance_photos', 'public');
 
+        /*
+        |--------------------------------------------------------------------------
+        | Build correct shift-aware datetimes
+        |--------------------------------------------------------------------------
+        */
+
+        $attendanceBaseDate = Carbon::parse(
+            $attendance->attendance_date->format('Y-m-d'),
+            'Asia/Karachi'
+        );
+
+        // Shift start datetime
+        $shiftStartDateTime = Carbon::parse(
+            $attendanceBaseDate->format('Y-m-d') . ' ' . $shift->start_time,
+            'Asia/Karachi'
+        );
+
+        // Shift end datetime
+        $shiftEndDateTime = Carbon::parse(
+            $attendanceBaseDate->format('Y-m-d') . ' ' . $shift->end_time,
+            'Asia/Karachi'
+        );
+
+        if ($shift->is_overnight && $shiftEndDateTime->lte($shiftStartDateTime)) {
+            $shiftEndDateTime->addDay();
+        }
+
+        // Actual check-in datetime
         $checkInDateTime = Carbon::parse(
-            $attendance->attendance_date->format('Y-m-d') . ' ' . $attendance->check_in,
+            $attendanceBaseDate->format('Y-m-d') . ' ' . $attendance->check_in,
             'Asia/Karachi'
         );
 
-        $checkOutDateTime = Carbon::parse(
-            $checkOut->format('Y-m-d H:i:s'),
-            'Asia/Karachi'
-        );
+        // Overnight shift: if check-in time is numerically less than shift start,
+        // it means check-in happened after midnight, so move to next day.
+        if ($shift->is_overnight && $checkInDateTime->lt($shiftStartDateTime)) {
+            $checkInDateTime->addDay();
+        }
 
-        if ($checkOutDateTime->lte($checkInDateTime)) {
+        // Actual checkout datetime
+        $checkOutDateTime = $checkOut->copy();
+
+        // If checkout appears before checkin in overnight context, move to next day
+        if ($checkOutDateTime->lt($checkInDateTime)) {
             $checkOutDateTime->addDay();
         }
 
-        $shiftEnd = Carbon::parse(
-            $attendance->attendance_date->format('Y-m-d') . ' ' . $shift->end_time,
-            'Asia/Karachi'
-        );
-
-        if ($shift->is_overnight) {
-            $shiftEnd->addDay();
-        }
-
-        $overtimeMinutes = 0;
-        if ($checkOutDateTime->gt($shiftEnd)) {
-            $overtimeMinutes = $checkOutDateTime->diffInMinutes($shiftEnd);
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | Break overlap calculation
+        |--------------------------------------------------------------------------
+        */
 
         $breakMinutes = 0;
 
         if ($shift->break_start_time && $shift->break_end_time) {
-            $breakStart = Carbon::parse(
-                $attendance->attendance_date->format('Y-m-d') . ' ' . $shift->break_start_time,
+            $breakStartDateTime = Carbon::parse(
+                $attendanceBaseDate->format('Y-m-d') . ' ' . $shift->break_start_time,
                 'Asia/Karachi'
             );
 
-            $breakEnd = Carbon::parse(
-                $attendance->attendance_date->format('Y-m-d') . ' ' . $shift->break_end_time,
+            $breakEndDateTime = Carbon::parse(
+                $attendanceBaseDate->format('Y-m-d') . ' ' . $shift->break_end_time,
                 'Asia/Karachi'
             );
 
             if ($shift->is_overnight) {
-                if ($breakStart->lt($checkInDateTime)) {
-                    $breakStart->addDay();
+                // If break starts before shift start clock-wise, it belongs to next day
+                if ($breakStartDateTime->lt($shiftStartDateTime)) {
+                    $breakStartDateTime->addDay();
                 }
 
-                if ($breakEnd->lte($breakStart)) {
-                    $breakEnd->addDay();
+                if ($breakEndDateTime->lte($breakStartDateTime)) {
+                    $breakEndDateTime->addDay();
                 }
             }
 
-            $overlapStart = $checkInDateTime->copy()->max($breakStart);
-            $overlapEnd = $checkOutDateTime->copy()->min($breakEnd);
+            $overlapStart = $checkInDateTime->copy()->max($breakStartDateTime);
+            $overlapEnd = $checkOutDateTime->copy()->min($breakEndDateTime);
 
             if ($overlapEnd->gt($overlapStart)) {
                 $breakMinutes = $overlapEnd->diffInMinutes($overlapStart);
             }
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | Worked + overtime
+        |--------------------------------------------------------------------------
+        */
+
         $totalWorkedSpan = $checkOutDateTime->diffInMinutes($checkInDateTime);
         $workedMinutes = max(0, $totalWorkedSpan - $breakMinutes);
+
+        $overtimeMinutes = 0;
+        if ($checkOutDateTime->gt($shiftEndDateTime)) {
+            $overtimeMinutes = $checkOutDateTime->diffInMinutes($shiftEndDateTime);
+        }
 
         $existingReason = trim((string) $attendance->suspicious_reason);
         if (!empty($reasons)) {
