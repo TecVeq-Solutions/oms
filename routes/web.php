@@ -24,6 +24,16 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\AllowedIpController;
 use App\Http\Controllers\EmployeeBankAccountController;
 use App\Http\Controllers\EmployeeSalaryPaymentController;
+use App\Http\Controllers\WorkspaceController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\MyTaskController;
+use App\Http\Controllers\TaskSystemLookupController;
+use App\Http\Controllers\TaskTimerController;
+use App\Http\Controllers\TaskExtensionRequestController;
+use App\Http\Controllers\TaskCommentController;
+use App\Http\Controllers\TaskAttachmentController;
+use App\Http\Controllers\TaskReportController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -33,12 +43,54 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | Dashboard
+    | Dashboard Admin Panel
     |--------------------------------------------------------------------------
     */
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('permission:view dashboard')
         ->name('dashboard');
+    Route::resource('workspaces', WorkspaceController::class);
+    Route::resource('projects', ProjectController::class);
+    Route::resource('tasks', TaskController::class);
+    Route::get('/task-system/workspaces/{workspace}/projects', [TaskSystemLookupController::class, 'projectsByWorkspace'])
+        ->name('task-system.workspaces.projects');
+
+    Route::get('/task-system/projects/{project}/users', [TaskSystemLookupController::class, 'usersByProject'])
+        ->name('task-system.projects.users');
+    Route::middleware('permission:request task extension')->group(function () {
+        Route::post('/tasks/{task}/extension-requests', [TaskExtensionRequestController::class, 'store'])
+            ->name('tasks.extension-requests.store');
+    });
+
+    Route::middleware('permission:approve task extension')->group(function () {
+        Route::get('/task-extension-requests', [TaskExtensionRequestController::class, 'index'])
+            ->name('task-extension-requests.index');
+
+        Route::post('/task-extension-requests/{taskExtensionRequest}/approve', [TaskExtensionRequestController::class, 'approve'])
+            ->name('task-extension-requests.approve');
+
+        Route::post('/task-extension-requests/{taskExtensionRequest}/reject', [TaskExtensionRequestController::class, 'reject'])
+            ->name('task-extension-requests.reject');
+    });
+    Route::middleware('permission:comment on tasks')->group(function () {
+        Route::post('/tasks/{task}/comments', [TaskCommentController::class, 'store'])
+            ->name('tasks.comments.store');
+    });
+    Route::middleware('permission:upload task attachments')->group(function () {
+        Route::post('/tasks/{task}/attachments', [TaskAttachmentController::class, 'store'])
+            ->name('tasks.attachments.store');
+    });
+    Route::middleware('permission:view task reports')->group(function () {
+        Route::get('/task-reports', [TaskReportController::class, 'index'])
+            ->name('task-reports.index');
+
+        Route::get('/task-reports/users/{user}', [TaskReportController::class, 'userReport'])
+            ->name('task-reports.user');
+    });
+
+    Route::get('/my-task-report', [TaskReportController::class, 'myReport'])
+        ->middleware('auth')
+        ->name('task-reports.my');
 
     /*
     |--------------------------------------------------------------------------
@@ -79,6 +131,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/employees/{employee}/salary-payments', [EmployeeSalaryPaymentController::class, 'store'])
             ->name('employees.salary-payments.store');
     });
+
 
     /*
     |--------------------------------------------------------------------------
@@ -133,12 +186,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
     });
 
+    Route::middleware('permission:view own tasks')->group(function () {
+        Route::get('/my-tasks', [MyTaskController::class, 'index'])
+            ->name('tasks.my');
+    });
+    Route::middleware('permission:start own task')->group(function () {
+        Route::post('/tasks/{task}/start', [TaskTimerController::class, 'start'])
+            ->name('tasks.start');
+    });
+
+    Route::middleware('permission:stop own task')->group(function () {
+        Route::post('/tasks/{task}/stop', [TaskTimerController::class, 'stop'])
+            ->name('tasks.stop');
+    });
+    Route::middleware('permission:complete own task')->group(function () {
+        Route::post('/tasks/{task}/complete', [TaskTimerController::class, 'complete'])
+            ->name('tasks.complete');
+    });
+
     /*
     |--------------------------------------------------------------------------
     | Employees
     |--------------------------------------------------------------------------
     */
-     Route::middleware('permission:create employees')->group(function () {
+    Route::middleware('permission:create employees')->group(function () {
         Route::get('/employees/create', [EmployeeController::class, 'create'])->name('employees.create');
         Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
     });
@@ -148,7 +219,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
     });
 
-   
+
     Route::middleware('permission:edit employees')->group(function () {
         Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
         Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
@@ -377,4 +448,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';
