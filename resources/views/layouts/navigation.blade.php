@@ -91,6 +91,65 @@
                 @endcan
             </div>
         </div>
+        <div>
+            <p class="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-200/60 mb-2">Task System</p>
+            <div class="space-y-1.5">
+
+                @can('view workspaces')
+                    <a href="{{ route('workspaces.index') }}"
+                        class="{{ $linkBase }} {{ request()->routeIs('workspaces.*') ? $activeClass : $inactiveClass }}">
+                        <span class="text-base">🗂️</span>
+                        <span>{{ __('Workspaces') }}</span>
+                    </a>
+                @endcan
+
+                @can('view projects')
+                    <a href="{{ route('projects.index') }}"
+                        class="{{ $linkBase }} {{ request()->routeIs('projects.*') ? $activeClass : $inactiveClass }}">
+                        <span class="text-base">📁</span>
+                        <span>{{ __('Projects') }}</span>
+                    </a>
+                @endcan
+
+                @can('view tasks')
+                    <a href="{{ route('tasks.index') }}"
+                        class="{{ $linkBase }} {{ request()->routeIs('tasks.*') && !request()->routeIs('tasks.my') ? $activeClass : $inactiveClass }}">
+                        <span class="text-base">✅</span>
+                        <span>{{ __('Tasks') }}</span>
+                    </a>
+                @endcan
+
+                @can('view own tasks')
+                    <a href="{{ route('tasks.my') }}"
+                        class="{{ $linkBase }} {{ request()->routeIs('tasks.my') ? $activeClass : $inactiveClass }}">
+                        <span class="text-base">📌</span>
+                        <span>{{ __('My Tasks') }}</span>
+                    </a>
+                @endcan
+                @can('approve task extension')
+                    <a href="{{ route('task-extension-requests.index') }}"
+                        class="{{ $linkBase }} {{ request()->routeIs('task-extension-requests.*') ? $activeClass : $inactiveClass }}">
+                        <span class="text-base">⏳</span>
+                        <span>{{ __('Extension Requests') }}</span>
+                    </a>
+                @endcan
+                @can('view task reports')
+                    <a href="{{ route('task-reports.index') }}"
+                        class="{{ $linkBase }} {{ request()->routeIs('task-reports.index') ? $activeClass : $inactiveClass }}">
+                        <span class="text-base">📊</span>
+                        <span>{{ __('Task Reports') }}</span>
+                    </a>
+                @endcan
+
+                <a href="{{ route('task-reports.my') }}"
+                    class="{{ $linkBase }} {{ request()->routeIs('task-reports.my') ? $activeClass : $inactiveClass }}">
+                    <span class="text-base">🧾</span>
+                    <span>{{ __('My Task Report') }}</span>
+                </a>
+
+            </div>
+        </div>
+
 
         <!-- Office / HR -->
         <div>
@@ -157,7 +216,8 @@
 
         <!-- CRM / Campaigns -->
         <div>
-            <p class="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-200/60 mb-2">CRM & Marketing</p>
+            <p class="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-200/60 mb-2">CRM & Marketing
+            </p>
             <div class="space-y-1.5">
                 @can('view leads')
                     @if(feature_enabled('lead_module_enabled'))

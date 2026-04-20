@@ -78,6 +78,30 @@ class PermissionSeeder extends Seeder
             // leave reports / system pages
             'view leave types module',
             'view notifications module',
+            'view workspaces',
+            'create workspace',
+            'edit workspace',
+            'delete workspace',
+
+            'view projects',
+            'create project',
+            'edit project',
+            'delete project',
+
+            'view tasks',
+            'create task',
+            'edit task',
+            'delete task',
+            'assign task',
+            'view own tasks',
+            'start own task',
+            'stop own task',
+            'complete own task',
+            'request task extension',
+            'approve task extension',
+            'comment on tasks',
+            'upload task attachments',
+            'view task reports',
         ];
 
         foreach ($permissions as $permission) {
