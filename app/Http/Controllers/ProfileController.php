@@ -53,8 +53,9 @@ class ProfileController extends Controller
     }
 
     /**
-     * Resolve attendance date according to employee assigned shift.
-     * For overnight shift, after midnight and before shift end, attendance belongs to previous day.
+     * Resolve attendance date according to assigned shift.
+     * For overnight shifts, if current time falls in the carry-forward window
+     * (previous day's shift start to today's shift end), attendance belongs to previous day.
      */
     private function resolveAttendanceDateForShift($shift, Carbon $currentDateTime): string
     {
@@ -64,22 +65,57 @@ class ProfileController extends Controller
             return $attendanceDate;
         }
 
-        if ($shift->is_overnight) {
-            $shiftEndToday = Carbon::parse(
-                $currentDateTime->toDateString() . ' ' . $shift->end_time,
-                'Asia/Karachi'
-            );
+        if (!$shift->is_overnight) {
+            return $attendanceDate;
+        }
 
-            if ($currentDateTime->lte($shiftEndToday)) {
-                $attendanceDate = $currentDateTime->copy()->subDay()->toDateString();
-            }
+        $timezone = 'Asia/Karachi';
+        $today = $currentDateTime->copy()->startOfDay();
+
+        $previousShiftStart = Carbon::parse(
+            $today->copy()->subDay()->toDateString() . ' ' . $shift->start_time,
+            $timezone
+        );
+
+        $previousShiftEnd = Carbon::parse(
+            $today->toDateString() . ' ' . $shift->end_time,
+            $timezone
+        );
+
+        if ($previousShiftEnd->lte($previousShiftStart)) {
+            $previousShiftEnd->addDay();
+        }
+
+        if ($currentDateTime->betweenIncluded($previousShiftStart, $previousShiftEnd)) {
+            return $currentDateTime->copy()->subDay()->toDateString();
         }
 
         return $attendanceDate;
     }
 
     /**
-     * Find the relevant attendance record for current shift window.
+     * Get latest open attendance for employee's assigned shift.
+     * Open attendance always takes priority for checkout / duplicate checkin prevention.
+     */
+    private function getOpenShiftAttendance($employee): ?Attendance
+    {
+        if (!$employee || !$employee->shift) {
+            return null;
+        }
+
+        return Attendance::where('employee_id', $employee->id)
+            ->where('shift_id', $employee->shift->id)
+            ->whereNull('check_out')
+            ->latest('attendance_date')
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Find relevant attendance for current shift.
+     * Priority:
+     * 1. Any open attendance for same employee + same shift
+     * 2. Fallback to resolved attendance_date for same employee + same shift
      */
     private function getCurrentShiftAttendance($employee, Carbon $currentDateTime): ?Attendance
     {
@@ -87,29 +123,52 @@ class ProfileController extends Controller
             return null;
         }
 
-        $attendanceDate = $this->resolveAttendanceDateForShift($employee->shift, $currentDateTime);
+        $shift = $employee->shift;
+
+        $openAttendance = $this->getOpenShiftAttendance($employee);
+        if ($openAttendance) {
+            return $openAttendance;
+        }
+
+        $attendanceDate = $this->resolveAttendanceDateForShift($shift, $currentDateTime);
 
         return Attendance::where('employee_id', $employee->id)
+            ->where('shift_id', $shift->id)
             ->whereDate('attendance_date', $attendanceDate)
             ->latest('id')
             ->first();
     }
 
     /**
-     * Prevent duplicate or invalid check-in based on shift.
+     * Prevent duplicate or invalid check-in based on current shift state.
      */
     private function canCheckInNow($employee, Carbon $currentDateTime): array
     {
-        $attendance = $this->getCurrentShiftAttendance($employee, $currentDateTime);
+        if (!$employee || !$employee->shift) {
+            return [
+                'allowed' => false,
+                'message' => 'No shift assigned to your profile. Please contact admin.',
+            ];
+        }
 
-        if ($attendance && !$attendance->check_out) {
+        $openAttendance = $this->getOpenShiftAttendance($employee);
+        if ($openAttendance) {
             return [
                 'allowed' => false,
                 'message' => 'You have already checked in for your current shift. Please check out first.',
             ];
         }
 
-        if ($attendance && $attendance->check_out) {
+        $attendanceDate = $this->resolveAttendanceDateForShift($employee->shift, $currentDateTime);
+
+        $completedAttendance = Attendance::where('employee_id', $employee->id)
+            ->where('shift_id', $employee->shift->id)
+            ->whereDate('attendance_date', $attendanceDate)
+            ->whereNotNull('check_out')
+            ->latest('id')
+            ->first();
+
+        if ($completedAttendance) {
             return [
                 'allowed' => false,
                 'message' => 'Attendance already completed for your current shift.',
@@ -351,7 +410,6 @@ class ProfileController extends Controller
         $checkOut = Carbon::now('Asia/Karachi');
         $shift = $employee->shift;
 
-        // Shift-aware attendance find
         $attendance = $this->getCurrentShiftAttendance($employee, $checkOut);
 
         if (!$attendance) {
@@ -409,24 +467,16 @@ class ProfileController extends Controller
 
         $checkoutPhotoPath = $photoFile->store('attendance_photos', 'public');
 
-        /*
-        |--------------------------------------------------------------------------
-        | Build correct shift-aware datetimes
-        |--------------------------------------------------------------------------
-        */
-
         $attendanceBaseDate = Carbon::parse(
             $attendance->attendance_date->format('Y-m-d'),
             'Asia/Karachi'
         );
 
-        // Shift start datetime
         $shiftStartDateTime = Carbon::parse(
             $attendanceBaseDate->format('Y-m-d') . ' ' . $shift->start_time,
             'Asia/Karachi'
         );
 
-        // Shift end datetime
         $shiftEndDateTime = Carbon::parse(
             $attendanceBaseDate->format('Y-m-d') . ' ' . $shift->end_time,
             'Asia/Karachi'
@@ -436,31 +486,20 @@ class ProfileController extends Controller
             $shiftEndDateTime->addDay();
         }
 
-        // Actual check-in datetime
         $checkInDateTime = Carbon::parse(
             $attendanceBaseDate->format('Y-m-d') . ' ' . $attendance->check_in,
             'Asia/Karachi'
         );
 
-        // Overnight shift: if check-in time is numerically less than shift start,
-        // it means check-in happened after midnight, so move to next day.
         if ($shift->is_overnight && $checkInDateTime->lt($shiftStartDateTime)) {
             $checkInDateTime->addDay();
         }
 
-        // Actual checkout datetime
         $checkOutDateTime = $checkOut->copy();
 
-        // If checkout appears before checkin in overnight context, move to next day
         if ($checkOutDateTime->lt($checkInDateTime)) {
             $checkOutDateTime->addDay();
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Break overlap calculation
-        |--------------------------------------------------------------------------
-        */
 
         $breakMinutes = 0;
 
@@ -476,7 +515,6 @@ class ProfileController extends Controller
             );
 
             if ($shift->is_overnight) {
-                // If break starts before shift start clock-wise, it belongs to next day
                 if ($breakStartDateTime->lt($shiftStartDateTime)) {
                     $breakStartDateTime->addDay();
                 }
@@ -493,12 +531,6 @@ class ProfileController extends Controller
                 $breakMinutes = $overlapEnd->diffInMinutes($overlapStart);
             }
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Worked + overtime
-        |--------------------------------------------------------------------------
-        */
 
         $totalWorkedSpan = $checkOutDateTime->diffInMinutes($checkInDateTime);
         $workedMinutes = max(0, $totalWorkedSpan - $breakMinutes);
