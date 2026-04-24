@@ -42,12 +42,16 @@ class ProfileController extends Controller
         $user = auth()->user();
         $employee = $user->employee;
 
-        $attendances = $employee
-            ? $employee->attendances()
-                ->with('shift')
-                ->latest('attendance_date')
-                ->paginate(10)
-            : collect();
+        if (!$employee) {
+            $attendances = collect();
+
+            return view('profile.my-attendance', compact('employee', 'attendances'));
+        }
+
+        $attendances = $employee->attendances()
+            ->with('shift')
+            ->latest('attendance_date')
+            ->paginate(10);
 
         return view('profile.my-attendance', compact('employee', 'attendances'));
     }
@@ -97,16 +101,19 @@ class ProfileController extends Controller
      * Get latest open attendance for employee's assigned shift.
      * Open attendance always takes priority for checkout / duplicate checkin prevention.
      */
-    private function getOpenShiftAttendance($employee): ?Attendance
+    private function getOpenShiftAttendance($employee, ?Carbon $currentDateTime = null): ?Attendance
     {
         if (!$employee || !$employee->shift) {
             return null;
         }
 
+        $currentDateTime = $currentDateTime ?: Carbon::now('Asia/Karachi');
+        $attendanceDate = $this->resolveAttendanceDateForShift($employee->shift, $currentDateTime);
+
         return Attendance::where('employee_id', $employee->id)
             ->where('shift_id', $employee->shift->id)
+            ->whereDate('attendance_date', $attendanceDate)
             ->whereNull('check_out')
-            ->latest('attendance_date')
             ->latest('id')
             ->first();
     }
@@ -125,7 +132,8 @@ class ProfileController extends Controller
 
         $shift = $employee->shift;
 
-        $openAttendance = $this->getOpenShiftAttendance($employee);
+        $openAttendance = $this->getOpenShiftAttendance($employee, $currentDateTime);
+
         if ($openAttendance) {
             return $openAttendance;
         }
@@ -151,7 +159,8 @@ class ProfileController extends Controller
             ];
         }
 
-        $openAttendance = $this->getOpenShiftAttendance($employee);
+        $openAttendance = $this->getOpenShiftAttendance($employee, $currentDateTime);
+
         if ($openAttendance) {
             return [
                 'allowed' => false,
