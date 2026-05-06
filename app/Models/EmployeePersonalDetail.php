@@ -33,6 +33,18 @@ class EmployeePersonalDetail extends Model
         'document_1',
         'document_2',
         'document_3',
+
+        // document verification
+        'cnic_front_status',
+        'cnic_front_reject_reason',
+        'cnic_back_status',
+        'cnic_back_reject_reason',
+        'document_1_status',
+        'document_1_reject_reason',
+        'document_2_status',
+        'document_2_reject_reason',
+        'document_3_status',
+        'document_3_reject_reason',
     ];
 
     protected $casts = [

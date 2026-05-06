@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class ProfileController extends Controller
 {
@@ -22,6 +23,12 @@ class ProfileController extends Controller
         protected AttendancePrivacyService $privacyService,
         protected AppNotificationService $appNotificationService
     ) {
+    }
+    private function getEmployeeGender($employee): string
+    {
+        return strtolower((string) DB::table('employee_personal_details')
+            ->where('employee_id', $employee->id)
+            ->value('gender'));
     }
 
     public function employeeProfile()
@@ -197,6 +204,7 @@ class ProfileController extends Controller
 
         $user = auth()->user();
         $employee = $user->employee?->load('shift');
+        $employeeGender = $this->getEmployeeGender($employee);
 
         if (!$employee) {
             return redirect()
@@ -208,7 +216,7 @@ class ProfileController extends Controller
         $todayAttendance = $this->getCurrentShiftAttendance($employee, $now);
         $officeSetting = OfficeSetting::first();
 
-        return view('profile.check-in', compact('employee', 'todayAttendance', 'officeSetting'));
+        return view('profile.check-in', compact('employee', 'todayAttendance', 'officeSetting','employeeGender'));
     }
 
     public function storeCheckIn(Request $request)
@@ -238,6 +246,11 @@ class ProfileController extends Controller
             'longitude' => ['required', 'numeric'],
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'capture_source' => ['required', 'in:camera'],
+
+            'face_verified' => ['required', 'in:1'],
+            'face_validation_note' => ['nullable', 'string', 'max:255'],
+            'mask_detected' => ['nullable', 'boolean'],
+            'mask_confidence' => ['nullable', 'numeric', 'between:0,1'],
         ]);
 
         $checkIn = Carbon::now('Asia/Karachi');
@@ -255,6 +268,19 @@ class ProfileController extends Controller
         $outsideOffice = false;
         $isSuspicious = false;
         $reasons = [];
+        $employeeGender = $this->getEmployeeGender($employee);
+        $maskDetected = $request->boolean('mask_detected');
+        $maskConfidence = $request->input('mask_confidence');
+
+        if ($request->input('face_verified') !== '1') {
+            return back()->withErrors([
+                'photo' => 'Face verification failed. Please capture a clear selfie.',
+            ])->withInput();
+        }
+
+        if ($maskDetected) {
+            $reasons[] = 'Employee checked in with face mask. Gender: ' . ($employeeGender ?: 'unspecified') . '. Confidence: ' . $maskConfidence;
+        }
 
         if ($officeSetting) {
             $distance = $this->privacyService->calculateDistanceInMeters(
@@ -329,8 +355,8 @@ class ProfileController extends Controller
             'distance_from_office' => $distance,
             'photo_path' => $photoPath,
             'privacy_note' => $outsideOffice
-                ? 'Checked in outside office radius with live camera selfie.'
-                : 'Checked in within office radius with live camera selfie.',
+                ? 'Checked in outside office radius with live camera selfie. ' . ($maskDetected ? 'Face mask worn during check-in.' : 'No face mask detected.')
+                : 'Checked in within office radius with live camera selfie. ' . ($maskDetected ? 'Face mask worn during check-in.' : 'No face mask detected.'),
             'is_suspicious' => $isSuspicious,
             'suspicious_reason' => !empty($reasons) ? implode(', ', $reasons) : null,
         ]);
@@ -500,8 +526,13 @@ class ProfileController extends Controller
             'Asia/Karachi'
         );
 
-        if ($shift->is_overnight && $checkInDateTime->lt($shiftStartDateTime)) {
-            $checkInDateTime->addDay();
+        if ($shift->is_overnight) {
+            // Only add a day for post-midnight AM check-ins (e.g. 01:30).
+            // Pre-midnight evening check-ins (e.g. 20:13 before a 21:00 shift) must NOT be shifted forward.
+            $checkInHour = (int) $checkInDateTime->format('H');
+            if ($checkInHour < 12 && $checkInDateTime->lt($shiftStartDateTime)) {
+                $checkInDateTime->addDay();
+            }
         }
 
         $checkOutDateTime = $checkOut->copy();
@@ -628,5 +659,102 @@ class ProfileController extends Controller
         $request->session()->regenerateToken();
 
         return Redirect::to('/');
+    }
+
+    // -----------------------------------------------------------------------
+    // Employee Self-Service Profile Edit
+    // -----------------------------------------------------------------------
+
+    public function employeeProfileEdit()
+    {
+        abort_unless(auth()->user()->hasRole('employee'), 403);
+
+        $user     = auth()->user();
+        $employee = $user->employee?->load('personalDetail');
+
+        if (!$employee) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Your employee profile is not linked yet.');
+        }
+
+        $personal = $employee->personalDetail;
+
+        return view('profile.employee-edit', compact('employee', 'personal'));
+    }
+
+    public function employeeProfileUpdate(Request $request)
+    {
+        abort_unless(auth()->user()->hasRole('employee'), 403);
+
+        $user     = auth()->user();
+        $employee = $user->employee?->load('personalDetail');
+
+        if (!$employee) {
+            return redirect()->route('dashboard')
+                ->with('error', 'Your employee profile is not linked yet.');
+        }
+
+        $request->validate([
+            'phone'                    => 'nullable|string|max:20',
+            'current_address'          => 'nullable|string|max:500',
+            'permanent_address'        => 'nullable|string|max:500',
+            'city'                     => 'nullable|string|max:100',
+            'country'                  => 'nullable|string|max:100',
+            'emergency_contact_name'   => 'nullable|string|max:255',
+            'emergency_contact_phone'  => 'nullable|string|max:20',
+            'emergency_contact_relation' => 'nullable|string|max:100',
+            'cnic_front_photo'         => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'cnic_back_photo'          => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'document_1'               => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'document_2'               => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'document_3'               => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:4096',
+        ]);
+
+        // Update employee phone
+        $employee->update(['phone' => $request->phone]);
+
+        $personal = $employee->personalDetail ?? new \App\Models\EmployeePersonalDetail(['employee_id' => $employee->id]);
+
+        // Handle document uploads — reset status to pending when new file uploaded
+        $docFields = ['cnic_front_photo', 'cnic_back_photo', 'document_1', 'document_2', 'document_3'];
+        foreach ($docFields as $field) {
+            if ($request->hasFile($field)) {
+                $oldPath = $personal->$field;
+                if ($oldPath) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($oldPath);
+                }
+                $personal->$field = $request->file($field)->store('employee/docs', 'public');
+
+                // Map field to its status column
+                $statusField = match($field) {
+                    'cnic_front_photo' => 'cnic_front_status',
+                    'cnic_back_photo'  => 'cnic_back_status',
+                    'document_1'       => 'document_1_status',
+                    'document_2'       => 'document_2_status',
+                    'document_3'       => 'document_3_status',
+                };
+                $personal->$statusField = 'pending';
+
+                // Clear any old reject reason
+                $rejectField = str_replace('_status', '_reject_reason', $statusField);
+                $personal->$rejectField = null;
+            }
+        }
+
+        $personal->fill($request->only([
+            'current_address',
+            'permanent_address',
+            'city',
+            'country',
+            'emergency_contact_name',
+            'emergency_contact_phone',
+            'emergency_contact_relation',
+        ]));
+
+        $personal->employee_id = $employee->id;
+        $personal->save();
+
+        return redirect()->route('profile.employee')
+            ->with('success', 'Profile updated successfully. Uploaded documents are pending admin verification.');
     }
 }

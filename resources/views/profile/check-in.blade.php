@@ -67,10 +67,17 @@
                         <input type="hidden" id="latitude" name="latitude" value="{{ old('latitude') }}">
                         <input type="hidden" id="longitude" name="longitude" value="{{ old('longitude') }}">
                         <input type="hidden" id="capture_source" name="capture_source" value="camera">
-                        <input type="hidden" id="face_verified" name="face_verified" value="{{ old('face_verified', '0') }}">
-                        <input type="hidden" id="face_validation_note" name="face_validation_note" value="{{ old('face_validation_note') }}">
+                        <input type="hidden" id="face_verified" name="face_verified"
+                            value="{{ old('face_verified', '0') }}">
+                        <input type="hidden" id="face_validation_note" name="face_validation_note"
+                            value="{{ old('face_validation_note') }}">
+                        <input type="hidden" id="mask_detected" name="mask_detected"
+                            value="{{ old('mask_detected', '0') }}">
+                        <input type="hidden" id="mask_confidence" name="mask_confidence"
+                            value="{{ old('mask_confidence') }}">
 
-                        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" class="hidden" required>
+                        <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp" class="hidden"
+                            required>
 
                         <div class="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 text-sm">
                             <p class="font-semibold mb-2">Selfie Guidelines</p>
@@ -79,7 +86,7 @@
                                 <li>Only one face should appear in the frame.</li>
                                 <li>Do not capture desk, wall, floor, ceiling, or random objects.</li>
                                 <li>Do not hide your face with hand, mobile, helmet, or strong shadow.</li>
-                                <li>Mask or glasses are allowed only if face is still clearly visible.</li>
+                                <li>Face mask is allowed — ensure your face is still clearly identifiable.</li>
                                 <li>Attendance will not be submitted if no clear face is detected.</li>
                             </ul>
                         </div>
@@ -93,9 +100,11 @@
                                 </label>
 
                                 <div class="rounded-xl overflow-hidden border bg-black">
-                                    <video id="cameraPreview" autoplay playsinline class="w-full h-80 object-cover hidden"></video>
+                                    <video id="cameraPreview" autoplay playsinline
+                                        class="w-full h-80 object-cover hidden"></video>
 
-                                    <div id="cameraPlaceholder" class="w-full h-80 flex items-center justify-center text-sm text-gray-300">
+                                    <div id="cameraPlaceholder"
+                                        class="w-full h-80 flex items-center justify-center text-sm text-gray-300">
                                         Camera preview will appear here
                                     </div>
                                 </div>
@@ -128,9 +137,11 @@
                                 </label>
 
                                 <div class="rounded-xl overflow-hidden border bg-white">
-                                    <img id="capturedPreview" src="" alt="Captured selfie preview" class="w-full h-80 object-cover hidden">
+                                    <img id="capturedPreview" src="" alt="Captured selfie preview"
+                                        class="w-full h-80 object-cover hidden">
 
-                                    <div id="capturedPlaceholder" class="w-full h-80 flex items-center justify-center text-sm text-gray-400">
+                                    <div id="capturedPlaceholder"
+                                        class="w-full h-80 flex items-center justify-center text-sm text-gray-400">
                                         No selfie captured yet
                                     </div>
                                 </div>
@@ -145,7 +156,8 @@
 
                         <div class="flex items-center gap-3 pt-2">
                             <button type="submit" id="submitCheckInBtn"
-                                class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition" disabled>
+                                class="px-5 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                                disabled>
                                 Mark Check In
                             </button>
 
@@ -161,6 +173,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -184,6 +197,11 @@
             const faceValidationMessage = document.getElementById('faceValidationMessage');
             const faceVerifiedInput = document.getElementById('face_verified');
             const faceValidationNoteInput = document.getElementById('face_validation_note');
+            const employeeGender = @json(strtolower($employeeGender ?? ''));
+            const maskDetectedInput = document.getElementById('mask_detected');
+            const maskConfidenceInput = document.getElementById('mask_confidence');
+
+            let maskModel = null;
 
             let stream = null;
             let photoCaptured = false;
@@ -206,6 +224,8 @@
 
             function resetFaceValidation() {
                 faceVerified = false;
+                maskDetectedInput.value = '0';
+                maskConfidenceInput.value = '';
                 faceVerifiedInput.value = '0';
                 faceValidationNoteInput.value = '';
                 submitCheckInBtn.disabled = true;
@@ -341,17 +361,35 @@
                         return false;
                     }
 
+                    let maskResult = { hasMask: false, confidence: 0 };
+                    try {
+                        maskResult = await detectMaskFromImage(capturedPreview);
+                    } catch (maskError) {
+                        console.warn('Mask detection failed to load (likely 403 Forbidden). Continuing with face verification only.', maskError);
+                    }
+
+                    maskDetectedInput.value = maskResult.hasMask ? '1' : '0';
+                    maskConfidenceInput.value = maskResult.confidence.toFixed(4);
+
                     faceVerified = true;
                     faceVerifiedInput.value = '1';
-                    faceValidationNoteInput.value = 'Face verified on client side';
-                    setFaceMessage('Face verified. You can now mark attendance.', 'success');
+
+                    if (maskResult.hasMask) {
+                        faceValidationNoteInput.value = 'Face verified with mask';
+                        setFaceMessage('Face verified with mask. You can proceed to mark attendance.', 'success');
+                    } else {
+                        faceValidationNoteInput.value = 'Face verified without mask';
+                        setFaceMessage('Face verified. You can now mark attendance.', 'success');
+                    }
+
                     faceValidationMessage.classList.remove('hidden');
                     submitCheckInBtn.disabled = false;
 
                     return true;
                 } catch (error) {
+                    console.error('Face validation error:', error);
                     setFaceMessage('Face validation failed. Please try again.');
-                    faceValidationNoteInput.value = 'Face validation JS error';
+                    faceValidationNoteInput.value = 'Face validation JS error: ' + error.message;
                     faceValidationMessage.classList.remove('hidden');
                     return false;
                 }
@@ -453,5 +491,38 @@
 
             window.addEventListener('beforeunload', stopCamera);
         });
+        async function loadMaskModel() {
+            if (maskModel) return maskModel;
+
+            maskModel = await tf.loadGraphModel(
+                'https://models.s3.amazonaws.com/face-mask-detection/model.json'
+            );
+
+            return maskModel;
+        }
+
+        async function detectMaskFromImage(imageElement) {
+            await loadMaskModel();
+
+            const tensor = tf.browser.fromPixels(imageElement)
+                .resizeBilinear([224, 224])
+                .toFloat()
+                .div(255.0)
+                .expandDims(0);
+
+            const predictionTensor = maskModel.predict(tensor);
+            const prediction = await predictionTensor.data();
+
+            tensor.dispose();
+            predictionTensor.dispose();
+
+            const noMaskScore = prediction[0] ?? 0;
+            const maskScore = prediction[1] ?? 0;
+
+            return {
+                hasMask: maskScore > noMaskScore && maskScore >= 0.70,
+                confidence: Math.max(maskScore, noMaskScore)
+            };
+        }
     </script>
 </x-app-layout>

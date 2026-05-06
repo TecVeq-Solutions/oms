@@ -34,6 +34,7 @@ use App\Http\Controllers\TaskExtensionRequestController;
 use App\Http\Controllers\TaskCommentController;
 use App\Http\Controllers\TaskAttachmentController;
 use App\Http\Controllers\TaskReportController;
+use App\Http\Controllers\EmployeeDocVerificationController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -140,6 +141,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
     Route::middleware(['role:employee'])->group(function () {
         Route::get('/my-profile', [ProfileController::class, 'employeeProfile'])->name('profile.employee');
+        Route::get('/my-profile/edit', [ProfileController::class, 'employeeProfileEdit'])->name('profile.employee.edit');
+        Route::put('/my-profile', [ProfileController::class, 'employeeProfileUpdate'])->name('profile.employee.update');
 
         Route::middleware(['feature:attendance_module_enabled'])->group(function () {
             Route::get('/my-attendance', [ProfileController::class, 'myAttendance'])->name('profile.attendance');
@@ -223,6 +226,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('permission:edit employees')->group(function () {
         Route::get('/employees/{employee}/edit', [EmployeeController::class, 'edit'])->name('employees.edit');
         Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
+        // Document verification
+        Route::post('/employees/{employee}/docs/{field}/verify', [EmployeeDocVerificationController::class, 'verify'])->name('employees.docs.verify');
+        Route::post('/employees/{employee}/docs/{field}/reject', [EmployeeDocVerificationController::class, 'reject'])->name('employees.docs.reject');
     });
 
     Route::middleware('permission:delete employees')->group(function () {
