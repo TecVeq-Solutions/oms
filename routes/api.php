@@ -17,3 +17,10 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+Route::middleware('tracking.api')->prefix('tracking')->group(function () {
+    Route::post('/upload', [\App\Http\Controllers\Api\ScreenshotTrackingController::class, 'upload']);
+    Route::get('/config', [\App\Http\Controllers\Api\ScreenshotTrackingController::class, 'config']);
+    Route::post('/heartbeat', [\App\Http\Controllers\Api\ScreenshotTrackingController::class, 'heartbeat']);
+    Route::get('/today-screenshots', [\App\Http\Controllers\Api\ScreenshotTrackingController::class, 'todayScreenshots']);
+});

@@ -22,6 +22,9 @@ class Employee extends Model
         'designation',
         'joining_date',
         'status',
+        'is_tracked',
+        'tracking_api_token',
+        'last_tracking_heartbeat',
     ];
 
     protected $casts = [
@@ -66,5 +69,33 @@ class Employee extends Model
     public function salaryPayments()
     {
         return $this->hasMany(EmployeeSalaryPayment::class);
+    }
+
+    public function screenshots()
+    {
+        return $this->hasMany(Screenshot::class);
+    }
+
+    public function todayScreenshots()
+    {
+        return $this->hasMany(Screenshot::class)->whereDate('captured_at', now()->toDateString());
+    }
+
+    public function latestScreenshot()
+    {
+        return $this->hasOne(Screenshot::class)->latestOfMany('captured_at');
+    }
+
+    public function getIsOnlineAttribute()
+    {
+        if (!$this->last_tracking_heartbeat) {
+            return false;
+        }
+        return \Carbon\Carbon::parse($this->last_tracking_heartbeat)->diffInMinutes(now()) <= 10;
+    }
+
+    public function scopeTracked($query)
+    {
+        return $query->where('is_tracked', true);
     }
 }

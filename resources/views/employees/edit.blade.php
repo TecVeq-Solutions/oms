@@ -272,6 +272,43 @@
                     </div>
                 </form>
             </div>
+
+            <!-- Screenshot Tracking Module -->
+            <div class="bg-white shadow rounded-xl p-6 mt-8">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Screenshot Tracking</h3>
+                <div class="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <p class="font-medium text-gray-800">Track this employee's screen</p>
+                            <p class="text-sm text-gray-500">Capture screenshots during office hours to monitor activity.</p>
+                        </div>
+                        <form action="{{ route('admin.tracking.toggle', $employee->id) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 rounded text-white {{ $employee->is_tracked ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600' }}">
+                                {{ $employee->is_tracked ? 'Disable Tracking' : 'Enable Tracking' }}
+                            </button>
+                        </form>
+                    </div>
+
+                    @if($employee->is_tracked)
+                        <hr class="my-4 border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="font-medium text-gray-800">Tracking API Token</p>
+                                <p class="text-sm text-gray-500 mb-2">Use this token in the desktop client.</p>
+                                <code class="bg-white px-3 py-1 border rounded text-indigo-600 select-all">{{ $employee->tracking_api_token }}</code>
+                            </div>
+                            <form action="{{ route('admin.tracking.regenerate-token', $employee->id) }}" method="POST" onsubmit="return confirm('Are you sure? Existing desktop clients using the old token will be disconnected.');">
+                                @csrf
+                                <button type="submit" class="px-3 py-1 border border-yellow-500 text-yellow-600 rounded hover:bg-yellow-50">
+                                    Regenerate Token
+                                </button>
+                            </form>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
         </div>
     </div>
 </x-app-layout>

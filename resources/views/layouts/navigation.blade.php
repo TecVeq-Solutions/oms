@@ -213,6 +213,17 @@
                                 <span class="text-base">🏦</span>
                                 <span>{{ __('Employee Bank & Salary') }}</span>
                             </a>
+                            <a href="{{ route('admin.tracking.dashboard') }}" @click="sidebarOpen = false"
+                                class="{{ $linkBase }} {{ request()->routeIs('admin.tracking.*') ? $activeClass : $inactiveClass }}">
+                                <span class="text-base">📸</span>
+                                <span class="flex-1">{{ __('Screenshot Tracking') }}</span>
+                                @php
+                                    $onlineCount = \App\Models\Employee::tracked()->get()->filter->is_online->count();
+                                @endphp
+                                @if($onlineCount > 0)
+                                    <span class="{{ $badgeClass }} bg-green-500">{{ $onlineCount }}</span>
+                                @endif
+                            </a>
                         @endcan
                     @endif
                 </div>

@@ -68,5 +68,6 @@ class Kernel extends HttpKernel
         'feature' => \App\Http\Middleware\EnsureFeatureEnabled::class,
         'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+        'tracking.api' => \App\Http\Middleware\TrackingApiAuth::class,
     ];
 }

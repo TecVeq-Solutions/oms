@@ -1,0 +1,4 @@
+requests
+Pillow
+pygetwindow; sys_platform == 'win32'
+psutil

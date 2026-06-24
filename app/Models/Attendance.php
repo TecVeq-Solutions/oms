@@ -53,4 +53,9 @@ class Attendance extends Model
     {
         return $this->belongsTo(\App\Models\Shift::class);
     }
+
+    public function screenshots()
+    {
+        return $this->hasMany(Screenshot::class);
+    }
 }

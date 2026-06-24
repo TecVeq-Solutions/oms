@@ -22,5 +22,18 @@ class OfficeSetting extends Model
         'selfie_required',
         'location_required',
         'device_tracking_enabled',
+        'screenshot_interval_minutes',
+        'screenshot_compression_quality',
+        'office_end_time',
     ];
+
+    public function getTrackingConfig()
+    {
+        return [
+            'office_start' => $this->office_start_time,
+            'office_end' => $this->office_end_time,
+            'interval_seconds' => ($this->screenshot_interval_minutes ?? 10) * 60,
+            'compression_quality' => $this->screenshot_compression_quality ?? 60,
+        ];
+    }
 }

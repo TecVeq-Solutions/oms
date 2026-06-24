@@ -438,6 +438,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('/user-roles/{user}', [UserRoleController::class, 'update'])->name('user-roles.update');
         Route::resource('allowed-ips', AllowedIpController::class)->except(['show']);
         Route::resource('shifts', ShiftController::class)->except(['show']);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Screenshot Tracking
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('admin/tracking')->name('admin.tracking.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Admin\TrackingDashboardController::class, 'index'])->name('dashboard');
+            Route::get('/employee/{id}', [\App\Http\Controllers\Admin\TrackingDashboardController::class, 'employeeScreenshots'])->name('employee');
+            Route::post('/toggle/{id}', [\App\Http\Controllers\Admin\TrackingDashboardController::class, 'toggleTracking'])->name('toggle');
+            Route::post('/regenerate-token/{id}', [\App\Http\Controllers\Admin\TrackingDashboardController::class, 'regenerateToken'])->name('regenerate-token');
+            Route::get('/api/screenshots', [\App\Http\Controllers\Admin\TrackingDashboardController::class, 'getScreenshotsJson'])->name('api.screenshots');
+            Route::get('/api/status', [\App\Http\Controllers\Admin\TrackingDashboardController::class, 'getEmployeeStatus'])->name('api.status');
+        });
     });
 
     /*
