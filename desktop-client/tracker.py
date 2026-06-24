@@ -6,6 +6,7 @@ import datetime
 import requests
 import io
 import threading
+import random
 from PIL import ImageGrab
 
 CONFIG_FILE = 'config.json'
@@ -171,7 +172,10 @@ def main():
             else:
                 print(f"[{datetime.datetime.now()}] Outside office hours. Skipping capture.")
                 
-            time.sleep(interval)
+            # Randomize sleep time between 1 min and the configured interval
+            sleep_time = random.randint(60, max(60, interval))
+            print(f"[{datetime.datetime.now()}] Next capture in {sleep_time // 60} minutes and {sleep_time % 60} seconds...")
+            time.sleep(sleep_time)
             
         except KeyboardInterrupt:
             print("Tracking client stopped.")
