@@ -29,6 +29,8 @@ class Employee extends Model
 
     protected $casts = [
         'joining_date' => 'date',
+        'last_tracking_heartbeat' => 'datetime',
+        'is_tracked' => 'boolean',
     ];
 
     public function user()
