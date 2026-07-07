@@ -219,5 +219,48 @@ PROMPT;
 
             throw $e;
         }
+        public function generateOtpMessage(?string $name, string $otp, ?int $userId = null): string
+    {
+        $system = 'You are a helpful assistant generating SMS messages. Return only the SMS text content, no JSON, no markdown.';
+
+        $nameStr = $name ? "named {$name}" : "with an unknown name";
+
+        $prompt = <<<PROMPT
+Generate a short, professional, and friendly SMS message for an app user {$nameStr}.
+Their OTP code is {$otp}. Let them know the code expires in 10 minutes.
+Keep it under 160 characters if possible. Do not include any signature.
+PROMPT;
+
+        try {
+            $raw = $this->sendPrompt($prompt, $system);
+            $text = $this->extractText($raw);
+
+            $usage = $this->extractUsage($raw);
+
+            AIGeneration::create([
+                'type' => 'otp_sms',
+                'model' => $this->model,
+                'user_id' => $userId,
+                'input_payload' => ['name' => $name, 'otp' => $otp],
+                'output_payload' => ['text' => $text],
+                'prompt_tokens' => $usage['prompt_tokens'],
+                'response_tokens' => $usage['response_tokens'],
+                'total_tokens' => $usage['total_tokens'],
+                'status' => 'success',
+            ]);
+
+            return trim($text);
+        } catch (\Throwable $e) {
+            AIGeneration::create([
+                'type' => 'otp_sms',
+                'model' => $this->model,
+                'user_id' => $userId,
+                'input_payload' => ['name' => $name, 'otp' => $otp],
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
     }
 }

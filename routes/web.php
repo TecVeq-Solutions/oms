@@ -466,6 +466,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/notifications/{notification}/quick-read', [AppNotificationController::class, 'quickRead'])->name('notifications.quick-read');
         Route::patch('/notifications/read-all', [AppNotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
     });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Wolfin Support
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware('permission:manage wolfin otps')->group(function () {
+        Route::get('/wolfin/otps', [\App\Http\Controllers\WolfinDashboardController::class, 'index'])->name('wolfin.otps.index');
+        Route::post('/wolfin/otps/{id}/send', [\App\Http\Controllers\WolfinDashboardController::class, 'send'])->name('wolfin.otps.send');
+    });
 });
 
 require __DIR__ . '/auth.php';

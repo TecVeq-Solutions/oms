@@ -24,3 +24,14 @@ Route::middleware('tracking.api')->prefix('tracking')->group(function () {
     Route::post('/heartbeat', [\App\Http\Controllers\Api\ScreenshotTrackingController::class, 'heartbeat']);
     Route::get('/today-screenshots', [\App\Http\Controllers\Api\ScreenshotTrackingController::class, 'todayScreenshots']);
 });
+
+// Wolfin Support API Routes
+Route::prefix('wolfin/auth')->group(function () {
+    Route::post('/init', [\App\Http\Controllers\Api\WolfinOtpApiController::class, 'init']);
+});
+
+Route::middleware('wolfin.app')->prefix('wolfin/otp')->group(function () {
+    Route::post('/request', [\App\Http\Controllers\Api\WolfinOtpApiController::class, 'requestOtp']);
+    Route::post('/resend', [\App\Http\Controllers\Api\WolfinOtpApiController::class, 'resendOtp']);
+    Route::post('/verify', [\App\Http\Controllers\Api\WolfinOtpApiController::class, 'verifyOtp']);
+});

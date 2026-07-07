@@ -357,6 +357,19 @@
                 </div>
             @endif
 
+            @can('manage wolfin otps')
+                <div>
+                    <p class="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-200/60 mb-2">Wolfin Support</p>
+                    <div class="space-y-1.5">
+                        <a href="{{ route('wolfin.otps.index') }}" @click="sidebarOpen = false"
+                            class="{{ $linkBase }} {{ request()->routeIs('wolfin.otps.*') ? $activeClass : $inactiveClass }}">
+                            <span class="text-base">🐺</span>
+                            <span>{{ __('OTP Dashboard') }}</span>
+                        </a>
+                    </div>
+                </div>
+            @endcan
+
             <div>
                 <p class="px-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-200/60 mb-2">Reports</p>
                 <div class="space-y-1.5">

@@ -30,6 +30,20 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $user = Auth::user();
+
+        // Prevent login for inactive employees
+        if ($user->employee && $user->employee->status === 'inactive') {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors([
+                    'email' => 'Your account has been deactivated. Please contact HR or Administration.',
+                ]);
+        }
+
         $currentIp = $request->ip();
 
         // Admin bypass if needed
