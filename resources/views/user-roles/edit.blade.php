@@ -40,13 +40,12 @@
                     @method('PUT')
 
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                        <select name="role"
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Roles</label>
+                        <select name="roles[]" id="roles-select" multiple
                                 class="w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
-                            <option value="">Select Role</option>
                             @foreach($roles as $role)
                                 <option value="{{ $role->name }}"
-                                    {{ old('role', $user->roles->first()?->name) === $role->name ? 'selected' : '' }}>
+                                    {{ in_array($role->name, old('roles', $user->roles->pluck('name')->toArray())) ? 'selected' : '' }}>
                                     {{ ucfirst($role->name) }}
                                 </option>
                             @endforeach
@@ -90,4 +89,34 @@
             </div>
         </div>
     </div>
+
+    @push('styles')
+        <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+        <style>
+            .select2-container--default .select2-selection--multiple {
+                border-color: #d1d5db;
+                border-radius: 0.5rem;
+                min-height: 42px;
+                padding: 2px 8px;
+            }
+            .select2-container--default.select2-container--focus .select2-selection--multiple {
+                border-color: #6366f1;
+                box-shadow: 0 0 0 1px #6366f1;
+            }
+        </style>
+    @endpush
+
+    @push('scripts')
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+        <script>
+            $(document).ready(function() {
+                $('#roles-select').select2({
+                    placeholder: "Select roles",
+                    allowClear: true,
+                    width: '100%'
+                });
+            });
+        </script>
+    @endpush
 </x-app-layout>

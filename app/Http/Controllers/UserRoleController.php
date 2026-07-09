@@ -51,15 +51,16 @@ class UserRoleController extends Controller
         abort_unless(auth()->user()->isAdmin(), 403);
 
         $request->validate([
-            'role' => 'required|exists:roles,name',
+            'roles' => 'required|array',
+            'roles.*' => 'exists:roles,name',
             'shift_id' => 'nullable|exists:shifts,id',
         ]);
 
-        if (auth()->id() === $user->id && $request->role !== 'admin') {
+        if (auth()->id() === $user->id && !in_array('admin', $request->roles)) {
             return back()->with('error', 'You cannot remove your own admin role.');
         }
 
-        $user->syncRoles([$request->role]);
+        $user->syncRoles($request->roles);
 
         if ($user->employee) {
             $user->employee->update([

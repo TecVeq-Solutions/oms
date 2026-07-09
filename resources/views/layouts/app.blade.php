@@ -88,6 +88,7 @@
             border-radius: 9999px;
         }
     </style>
+    @stack('styles')
 </head>
 
 <body class="font-sans antialiased">
@@ -153,6 +154,7 @@
             </footer>
         </div>
     </div>
+    @stack('scripts')
 </body>
 
 </html>

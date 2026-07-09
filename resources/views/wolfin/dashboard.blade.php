@@ -95,4 +95,47 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let currentLatestId = {{ $otps->first() ? $otps->first()->id : 0 }};
+            
+            if ("Notification" in window && Notification.permission !== "denied" && Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
+
+            setInterval(async () => {
+                try {
+                    const response = await fetch('{{ route('wolfin.otps.latest') }}');
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    
+                    if (data.latest_id > currentLatestId) {
+                        currentLatestId = data.latest_id;
+                        
+                        if ("Notification" in window && Notification.permission === "granted") {
+                            new Notification("New OTP Request", {
+                                body: "A new OTP request has been received."
+                            });
+                        }
+                        
+                        const htmlResponse = await fetch(window.location.href);
+                        const htmlText = await htmlResponse.text();
+                        
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(htmlText, 'text/html');
+                        
+                        const newTableContainer = doc.querySelector('.bg-white.shadow.rounded-xl.overflow-hidden');
+                        const oldTableContainer = document.querySelector('.bg-white.shadow.rounded-xl.overflow-hidden');
+                        
+                        if (newTableContainer && oldTableContainer) {
+                            oldTableContainer.innerHTML = newTableContainer.innerHTML;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error polling for latest OTPs:", error);
+                }
+            }, 10000); 
+        });
+    </script>
 </x-app-layout>

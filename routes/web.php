@@ -42,6 +42,8 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
+    Route::post('/switch-role', [\App\Http\Controllers\RoleSwitchController::class, 'switch'])->name('role.switch');
+
     /*
     |--------------------------------------------------------------------------
     | Dashboard Admin Panel
@@ -474,6 +476,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     */
     Route::middleware('permission:manage wolfin otps')->group(function () {
         Route::get('/wolfin/otps', [\App\Http\Controllers\WolfinDashboardController::class, 'index'])->name('wolfin.otps.index');
+        Route::get('/wolfin/otps/latest', [\App\Http\Controllers\WolfinDashboardController::class, 'latest'])->name('wolfin.otps.latest');
         Route::post('/wolfin/otps/{id}/send', [\App\Http\Controllers\WolfinDashboardController::class, 'send'])->name('wolfin.otps.send');
     });
 });

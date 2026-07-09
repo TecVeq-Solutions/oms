@@ -44,29 +44,85 @@ class User extends Authenticatable
     {
         return $this->hasMany(AppNotification::class)->whereNull('read_at')->latest();
     }
+    public function getActiveRoleAttribute()
+    {
+        return session('active_role') ?? $this->roles->first()?->name;
+    }
+
     public function isAdmin(): bool
     {
-        return $this->hasRole('admin');
+        return $this->active_role === 'admin';
     }
 
     public function isEmployee(): bool
     {
-        return $this->hasRole('employee');
+        return $this->active_role === 'employee';
     }
 
     public function isHR(): bool
     {
-        return $this->hasRole('hr');
+        return $this->active_role === 'hr';
     }
 
     public function isSales(): bool
     {
-        return $this->hasRole('sales');
+        return $this->active_role === 'sales';
     }
 
     public function isManager(): bool
     {
-        return $this->hasRole('manager');
+        return $this->active_role === 'manager';
+    }
+
+    public function hasRole($roles, $guard = null): bool
+    {
+        if (is_string($roles) && false !== strpos($roles, '|')) {
+            $roles = explode('|', $roles);
+        }
+
+        if (is_string($roles)) {
+            return $this->active_role === $roles;
+        }
+
+        if (is_array($roles) || $roles instanceof \Illuminate\Support\Collection) {
+            $roles = collect($roles)->map(fn($r) => is_object($r) ? $r->name : $r)->toArray();
+            return in_array($this->active_role, $roles);
+        }
+
+        return false;
+    }
+
+    public function hasAnyRole(...$roles): bool
+    {
+        if (isset($roles[0]) && is_array($roles[0])) {
+            $roles = $roles[0];
+        }
+
+        return in_array($this->active_role, $roles);
+    }
+
+    public function hasAllRoles(...$roles): bool
+    {
+        if (isset($roles[0]) && is_array($roles[0])) {
+            $roles = $roles[0];
+        }
+
+        return count($roles) === 1 && $roles[0] === $this->active_role;
+    }
+
+    public function hasPermissionTo($permission, $guardName = null): bool
+    {
+        $activeRole = $this->active_role;
+        if (!$activeRole) {
+            return false;
+        }
+
+        try {
+            $role = \Spatie\Permission\Models\Role::findByName($activeRole, $guardName ?? $this->getDefaultGuardName());
+            return $role->hasPermissionTo($permission);
+        } catch (\Spatie\Permission\Exceptions\RoleDoesNotExist $e) {
+            return false;
+        }
     }
     public function allowedIps()
     {

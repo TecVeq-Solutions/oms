@@ -104,6 +104,37 @@
                         </div>
                     @endcan
 
+                    @if(Auth::user()->roles->count() > 1)
+                        <x-dropdown align="right" width="48">
+                            <x-slot name="trigger">
+                                <button class="inline-flex items-center gap-2 rounded-2xl bg-[#F8FAFF] border border-[#E6EDFF] px-3 py-2.5 text-sm font-medium text-[#0B1533] hover:bg-[#F2F6FF] transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                    <span class="hidden sm:inline">{{ ucfirst(Auth::user()->active_role) }}</span>
+                                    <svg class="fill-current h-4 w-4 text-slate-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </x-slot>
+
+                            <x-slot name="content">
+                                <div class="px-4 py-2 text-xs text-gray-500 font-semibold uppercase tracking-wider">
+                                    Switch Role
+                                </div>
+                                @foreach(Auth::user()->roles as $role)
+                                    <form method="POST" action="{{ route('role.switch') }}">
+                                        @csrf
+                                        <input type="hidden" name="role" value="{{ $role->name }}">
+                                        <button type="submit" class="w-full text-left block px-4 py-2 text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition {{ Auth::user()->active_role === $role->name ? 'bg-indigo-50 text-indigo-700 font-semibold' : '' }}">
+                                            {{ ucfirst($role->name) }}
+                                        </button>
+                                    </form>
+                                @endforeach
+                            </x-slot>
+                        </x-dropdown>
+                    @endif
+
                     <x-dropdown align="right" width="56">
                         <x-slot name="trigger">
                             <button class="inline-flex items-center gap-3 rounded-2xl bg-[#F8FAFF] border border-[#E6EDFF] px-3 py-2.5 text-sm font-medium text-[#0B1533] hover:bg-[#F2F6FF] transition">

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Services\GeminiAIService;
+use Illuminate\Support\Facades\Http;
 
 class WolfinOtpApiController extends Controller
 {
@@ -26,7 +28,7 @@ class WolfinOtpApiController extends Controller
         return response()->json(['token' => $token]);
     }
 
-    public function requestOtp(Request $request)
+    public function requestOtp(Request $request, GeminiAIService $aiService, \App\Services\AppNotificationService $notificationService)
     {
         $request->validate([
             'name' => 'nullable|string',
@@ -44,10 +46,47 @@ class WolfinOtpApiController extends Controller
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        return response()->json(['success' => true, 'id' => $otpRequest->id]);
+        try {
+            $userIds = \App\Models\User::role(['admin', 'wolfin support'])->pluck('id')->toArray();
+            $notificationService->notifyUsers(
+                $userIds,
+                'wolfin_otp',
+                'New OTP Request',
+                "A new OTP request was generated for {$otpRequest->phone_number}",
+                route('wolfin.otps.index')
+            );
+        } catch (\Exception $e) {
+            // Ignore if role doesn't exist or other error so it doesn't break OTP flow
+        }
+
+        try {
+            $message = $aiService->generateOtpMessage($otpRequest->name, $otpRequest->otp_code, null);
+            $gatewayUrl = env('SMS_GATEWAY_URL', 'http://localhost:8080/v1/sms/send');
+
+            $formattedPhone = $otpRequest->phone_number;
+            if (str_starts_with($formattedPhone, '03')) {
+                $formattedPhone = '+92' . substr($formattedPhone, 1);
+            }
+
+            $response = Http::timeout(10)
+                ->withBasicAuth(env('SMS_GATEWAY_USERNAME', ''), env('SMS_GATEWAY_PASSWORD', ''))
+                ->post($gatewayUrl, [
+                    'message' => $message,
+                    'phoneNumbers' => [$formattedPhone],
+                ]);
+
+            if ($response->successful() || env('APP_ENV') === 'local') {
+                $otpRequest->update(['status' => 'sent']);
+                return response()->json(['success' => true, 'id' => $otpRequest->id]);
+            } else {
+                return response()->json(['error' => 'Failed to send SMS via Gateway. Status: ' . $response->status()], 500);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error sending SMS: ' . $e->getMessage()], 500);
+        }
     }
 
-    public function resendOtp(Request $request)
+    public function resendOtp(Request $request, GeminiAIService $aiService)
     {
         $request->validate([
             'phone_number' => 'required|string',
@@ -66,7 +105,7 @@ class WolfinOtpApiController extends Controller
             ]);
         } else {
             // If none exists, create one
-            \App\Models\OtpRequest::create([
+            $otpRequest = \App\Models\OtpRequest::create([
                 'phone_number' => $request->phone_number,
                 'otp_code' => $request->otp_code,
                 'status' => 'pending',
@@ -74,7 +113,31 @@ class WolfinOtpApiController extends Controller
             ]);
         }
 
-        return response()->json(['success' => true]);
+        try {
+            $message = $aiService->generateOtpMessage($otpRequest->name, $otpRequest->otp_code, null);
+            $gatewayUrl = env('SMS_GATEWAY_URL', 'http://localhost:8080/v1/sms/send');
+
+            $formattedPhone = $otpRequest->phone_number;
+            if (str_starts_with($formattedPhone, '03')) {
+                $formattedPhone = '+92' . substr($formattedPhone, 1);
+            }
+
+            $response = Http::timeout(10)
+                ->withBasicAuth(env('SMS_GATEWAY_USERNAME', ''), env('SMS_GATEWAY_PASSWORD', ''))
+                ->post($gatewayUrl, [
+                    'message' => $message,
+                    'phoneNumbers' => [$formattedPhone],
+                ]);
+
+            if ($response->successful() || env('APP_ENV') === 'local') {
+                $otpRequest->update(['status' => 'sent']);
+                return response()->json(['success' => true]);
+            } else {
+                return response()->json(['error' => 'Failed to send SMS via Gateway. Status: ' . $response->status()], 500);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Error sending SMS: ' . $e->getMessage()], 500);
+        }
     }
 
     public function verifyOtp(Request $request)

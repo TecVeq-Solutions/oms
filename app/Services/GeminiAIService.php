@@ -41,7 +41,7 @@ class GeminiAIService
         ];
     }
 
-    protected function sendPrompt(string $prompt, ?string $systemInstruction = null): array
+    protected function sendPrompt(string $prompt, ?string $systemInstruction = null, string $responseMimeType = 'application/json'): array
     {
         $payload = [
             'contents' => [
@@ -55,7 +55,7 @@ class GeminiAIService
                 'temperature' => 0.7,
                 'topP' => 0.9,
                 'maxOutputTokens' => 1200,
-                'responseMimeType' => 'application/json',
+                'responseMimeType' => $responseMimeType,
             ],
         ];
 
@@ -219,7 +219,9 @@ PROMPT;
 
             throw $e;
         }
-        public function generateOtpMessage(?string $name, string $otp, ?int $userId = null): string
+    }
+
+    public function generateOtpMessage(?string $name, string $otp, ?int $userId = null): string
     {
         $system = 'You are a helpful assistant generating SMS messages. Return only the SMS text content, no JSON, no markdown.';
 
@@ -228,11 +230,12 @@ PROMPT;
         $prompt = <<<PROMPT
 Generate a short, professional, and friendly SMS message for an app user {$nameStr}.
 Their OTP code is {$otp}. Let them know the code expires in 10 minutes.
+Make sure to include the company name "Wolfin Support" so they know who sent it.
 Keep it under 160 characters if possible. Do not include any signature.
 PROMPT;
 
         try {
-            $raw = $this->sendPrompt($prompt, $system);
+            $raw = $this->sendPrompt($prompt, $system, 'text/plain');
             $text = $this->extractText($raw);
 
             $usage = $this->extractUsage($raw);
